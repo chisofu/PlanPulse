@@ -52,6 +52,18 @@ export interface BudgetItem {
   status: ItemStatus;
 }
 
+export interface ItemSuggestionMetadata {
+  description: string;
+  category: string;
+  unit: string;
+  unitPrice: number;
+  priceSource: PriceSource;
+  quantitySuggestion?: number;
+  usageCount: number;
+  lastUsedAt?: string;
+  provenance: 'seed' | 'user';
+}
+
 export interface ShoppingList {
   id: string;
   name: string;

@@ -51,6 +51,8 @@ export type PlanPulseState = {
   updateQuoteStatus: (quoteId: string, status: QuoteStatus, note?: string) => void;
   requestNewQuoteFromExisting: (quoteId: string) => Quote | undefined;
   upsertPurchaseOrder: (purchaseOrder: PurchaseOrder) => void;
+  recordItemSuggestion: (item: Omit<BudgetItem, 'id' | 'flags'>) => void;
+  upsertCategory: (category: string) => void;
 };
 
 type PersistedState = Pick<
@@ -326,6 +328,75 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
           ? state.purchaseOrders.map((po) => (po.id === purchaseOrder.id ? purchaseOrder : po))
           : [...state.purchaseOrders, purchaseOrder],
       }));
+    },
+    recordItemSuggestion: (item) => {
+      const normalizedDescription = item.description.trim().toLowerCase();
+      const timestamp = new Date().toISOString();
+      set((state) => {
+        const existingIndex = state.itemSuggestions.findIndex(
+          (suggestion) => suggestion.description.toLowerCase() === normalizedDescription
+        );
+
+        const updatedSuggestions = existingIndex >= 0
+          ? state.itemSuggestions.map((suggestion, index) =>
+              index === existingIndex
+                ? {
+                    ...suggestion,
+                    category: item.category || suggestion.category,
+                    unit: item.unit || suggestion.unit,
+                    unitPrice: item.unitPrice || suggestion.unitPrice,
+                    priceSource: item.priceSource || suggestion.priceSource,
+                    quantitySuggestion: item.quantity ?? suggestion.quantitySuggestion,
+                    usageCount: suggestion.usageCount + 1,
+                    lastUsedAt: timestamp,
+                  }
+                : suggestion
+            )
+          : [
+              ...state.itemSuggestions,
+              {
+                description: item.description,
+                category: item.category,
+                unit: item.unit,
+                unitPrice: item.unitPrice,
+                priceSource: item.priceSource,
+                quantitySuggestion: item.quantity,
+                usageCount: 1,
+                lastUsedAt: timestamp,
+                provenance: 'user',
+              },
+            ];
+
+        const hasCategory = state.categoryTaxonomy.some(
+          (existing) => existing.toLowerCase() === item.category.toLowerCase()
+        );
+
+        const categoryTaxonomy = hasCategory
+          ? state.categoryTaxonomy
+          : [...state.categoryTaxonomy, item.category].sort((a, b) => a.localeCompare(b));
+
+        return {
+          itemSuggestions: updatedSuggestions,
+          categoryTaxonomy,
+        };
+      });
+    },
+    upsertCategory: (category) => {
+      const normalized = category.trim();
+      if (!normalized) {
+        return;
+      }
+      set((state) => {
+        const exists = state.categoryTaxonomy.some(
+          (existing) => existing.toLowerCase() === normalized.toLowerCase()
+        );
+        if (exists) {
+          return {};
+        }
+        return {
+          categoryTaxonomy: [...state.categoryTaxonomy, normalized].sort((a, b) => a.localeCompare(b)),
+        };
+      });
     },
   };
 });

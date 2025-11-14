@@ -363,6 +363,10 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const restoreItemsInList = usePlanPulseStore((state) => state.restoreItemsInList);
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const createList = usePlanPulseStore((state) => state.createList);
+  const suggestionsCatalog = usePlanPulseStore(selectItemSuggestions);
+  const categoryTaxonomy = usePlanPulseStore(selectCategoryTaxonomy);
+  const recordItemSuggestion = usePlanPulseStore((state) => state.recordItemSuggestion);
+  const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
 
   const [newItemDesc, setNewItemDesc] = useState('');
   const [filterText, setFilterText] = useState('');
