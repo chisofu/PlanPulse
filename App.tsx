@@ -26,6 +26,32 @@ import {
 import { routeConfigs } from './routes/config';
 import { NavigationItem } from './components/layout/NavigationRail';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  CheckCircleIcon,
+  ChevronRightIcon,
+  DocumentDuplicateIcon,
+  PaperAirplaneIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from './components/Icons';
+import { getModeTheme } from './components/layout/ModeTheme';
+
+const createListFromTemplateVariant = (template: Template, variant: TemplateVariant): ShoppingList => ({
+  id: uuidv4(),
+  name: `${template.name} — ${variant.name}`,
+  createdAt: new Date().toISOString(),
+  items: variant.items.map((item) => ({
+    id: uuidv4(),
+    description: item.description,
+    category: item.category,
+    unit: item.unit,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    priceSource: item.priceSource,
+    flags: [],
+  })),
+});
 
 const SurfaceLayout: React.FC<{ surface: Mode }> = ({ surface }) => {
   const location = useLocation();

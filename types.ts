@@ -51,22 +51,106 @@ export interface ShoppingList {
   createdAt: string;
 }
 
+export type TemplateCategory =
+  | 'Education'
+  | 'Construction'
+  | 'Household'
+  | 'Office'
+  | 'Health'
+  | 'Hospitality'
+  | 'Community'
+  | 'Custom';
+
+export interface TemplateItemDefinition extends Omit<BudgetItem, 'id' | 'flags'> {
+  benchmarkSource: PriceSource;
+}
+
+export interface TemplateVariant {
+  id: string;
+  name: 'Essentials' | 'Standard' | 'Full' | string;
+  summary: string;
+  recommendedFor: string;
+  estimatedBudget: number;
+  cadence: 'Quarterly' | 'Monthly' | 'Ad-hoc';
+  lastRefreshed: string;
+  sourceLabel: string;
+  items: TemplateItemDefinition[];
+}
+
+export interface TemplateMetrics {
+  adoptionRate: number;
+  avgLines: number;
+  lastUsedAt: string;
+}
+
 export interface Template {
   id: string;
   name: string;
   description: string;
-  category: string;
+  category: TemplateCategory;
   emoji: string;
-  variants: {
-    name: 'Essentials' | 'Standard' | 'Full';
-    items: Omit<BudgetItem, 'id' | 'flags'>[];
-  };
+  tags: string[];
+  tone: 'Personal' | 'Enterprise' | 'Hybrid';
+  variants: TemplateVariant[];
+  metrics: TemplateMetrics;
+}
+
+export type ValidationSeverity = 'info' | 'warning' | 'error';
+
+export interface ValidationIssue {
+  severity: ValidationSeverity;
+  field: string;
+  message: string;
+  context?: string;
+}
+
+export interface ImportValidationSummary {
+  status: 'pending' | 'running' | 'passed' | 'warnings' | 'failed';
+  issues: ValidationIssue[];
+}
+
+export type ImportStatus = 'Staged' | 'Validating' | 'Ready' | 'Failed' | 'Published' | 'RolledBack';
+
+export interface ZPPAImportBatch {
+  id: string;
+  filename: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  status: ImportStatus;
+  recordCount: number;
+  priceAverageDelta: number;
+  validationSummary: ImportValidationSummary;
+  promotedAt?: string;
 }
 
 export interface Merchant {
     id: string;
     name: string;
     logoUrl: string;
+}
+
+export type MerchantLifecycleStatus = 'Pending Docs' | 'In Review' | 'Approved' | 'Live' | 'Suspended';
+
+export interface MerchantProfileDetail extends Merchant {
+    legalName: string;
+    supplyCategory: string;
+    location: string;
+    primaryContact: string;
+    contactEmail: string;
+    lifecycleStatus: MerchantLifecycleStatus;
+    lastPriceUpdate: string;
+    nextReminderAt: string;
+}
+
+export type PriceListStatus = 'Draft' | 'Submitted' | 'Validating' | 'Accepted' | 'Rejected';
+
+export interface PriceListUpload {
+    id: string;
+    filename: string;
+    submittedAt: string;
+    status: PriceListStatus;
+    itemCount: number;
+    issues: ValidationIssue[];
 }
 
 export interface ChatMessage {
