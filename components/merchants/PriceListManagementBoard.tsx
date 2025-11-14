@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Mode, PriceListUpload } from '../../types';
 import { MOCK_MERCHANT_PROFILES, MOCK_PRICE_LIST_UPLOADS } from '../../constants';
 import { getModeTheme } from '../layout/ModeTheme';
+import StatusBadge from '../shared/StatusBadge';
 
 const statusBadgeClass: Record<string, string> = {
   Draft: 'bg-slate-100 text-slate-600',
@@ -44,6 +45,10 @@ export const PriceListManagementBoard: React.FC<{ mode: Mode }> = ({ mode }) => 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>(MOCK_MERCHANT_PROFILES[0]?.id ?? '');
 
   const uploads = useMemo(() => MOCK_PRICE_LIST_UPLOADS[selectedMerchantId] ?? [], [selectedMerchantId]);
+  const activeProfile = useMemo(
+    () => MOCK_MERCHANT_PROFILES.find((profile) => profile.id === selectedMerchantId),
+    [selectedMerchantId],
+  );
 
   return (
     <div className="space-y-4">
@@ -64,6 +69,16 @@ export const PriceListManagementBoard: React.FC<{ mode: Mode }> = ({ mode }) => 
           ))}
         </select>
       </div>
+
+      {activeProfile && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+          <span className="font-semibold text-slate-700">{activeProfile.name}</span>
+          <StatusBadge status={activeProfile.status} />
+          <span className="text-xs text-slate-500">
+            Last update {new Date(activeProfile.lastPriceUpdate).toLocaleDateString()}
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {uploads.map((upload) => (

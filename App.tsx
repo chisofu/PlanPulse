@@ -8,7 +8,7 @@ import {
   useNavigate,
 } from './vendor/react-router-dom';
 import AppShell from './components/layout/AppShell';
-import { Mode, Template, ShoppingList } from './types';
+import { Mode, Template, TemplateVariant, ShoppingList } from './types';
 import DashboardScreen from './screens/DashboardScreen';
 import TemplatesScreen from './screens/TemplatesScreen';
 import ListBuilderScreen from './screens/ListBuilderScreen';
@@ -16,6 +16,7 @@ import QuotesScreen from './screens/QuotesScreen';
 import PurchaseOrdersScreen, { POCreationScreen } from './screens/PurchaseOrdersScreen';
 import MerchantsScreen from './screens/MerchantsScreen';
 import AdminScreen from './screens/AdminScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import {
   usePlanPulseStore,
   selectMode,
@@ -150,20 +151,8 @@ const TemplatesRoute: React.FC<{ mode: Mode }> = ({ mode }) => {
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const setActiveList = usePlanPulseStore((state) => state.setActiveList);
 
-  const handleSelectTemplate = (template: Template) => {
-    const newList: ShoppingList = {
-      id: uuidv4(),
-      name: template.name,
-      createdAt: new Date().toISOString(),
-      items: template.variants.items.map((item) => ({
-        ...item,
-        id: uuidv4(),
-        flags: [],
-        priority: item.priority ?? 'Medium',
-        completed: item.completed ?? false,
-        status: item.status ?? 'Planned',
-      })),
-    };
+  const handleSelectTemplate = (template: Template, variant: TemplateVariant) => {
+    const newList = createListFromTemplateVariant(template, variant);
     upsertList(newList);
     setActiveList(newList.id);
     navigate('../lists');
@@ -177,7 +166,7 @@ const QuotesRoute: React.FC = () => {
   return (
     <QuotesScreen
       onCreatePurchaseOrder={(quote) => {
-        navigate(`../purchase-orders/new/${quote.id}`);
+        navigate(`../purchase-orders`, { state: { createFromQuoteId: quote.id } });
       }}
     />
   );
@@ -190,6 +179,8 @@ const POCreationRoute: React.FC = () => <POCreationScreen />;
 const MerchantsRoute: React.FC = () => <MerchantsScreen />;
 
 const AdminRoute: React.FC = () => <AdminScreen />;
+
+const SettingsRoute: React.FC = () => <SettingsScreen />;
 
 const App: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
@@ -274,6 +265,7 @@ const App: React.FC = () => {
         <Route path="purchase-orders/new/:quoteId" element={<POCreationRoute />} />
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
+        <Route path="settings" element={<SettingsRoute />} />
       </Route>
         <Route
           path="/budgetpulse"
@@ -295,6 +287,7 @@ const App: React.FC = () => {
         <Route path="purchase-orders/new/:quoteId" element={<POCreationRoute />} />
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
+        <Route path="settings" element={<SettingsRoute />} />
       </Route>
         <Route path="*" element={<Navigate to="/pricepulse/dashboard" replace />} />
       </Routes>

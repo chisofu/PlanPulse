@@ -11,6 +11,13 @@ export enum Role {
   Admin = 'Admin',
 }
 
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: Role | 'Finance Analyst' | 'Project Lead';
+  avatarUrl?: string;
+}
+
 export enum PriceSource {
   ZPPA = 'ZPPA',
   Merchant = 'Merchant',
@@ -50,6 +57,8 @@ export interface BudgetItem {
   priority: ItemPriority;
   completed: boolean;
   status: ItemStatus;
+  assigneeId?: string;
+  lastUpdatedAt?: string;
 }
 
 export interface ItemSuggestionMetadata {
@@ -71,6 +80,21 @@ export interface ShoppingList {
   items: BudgetItem[];
   createdAt: string;
   dueDate?: string;
+  ownerId?: string;
+  collaboratorIds?: string[];
+  lastUpdatedAt?: string;
+}
+
+export type ActivityEntityType = 'list' | 'item' | 'template' | 'role' | 'search';
+
+export interface ActivityEntry {
+  id: string;
+  summary: string;
+  timestamp: string;
+  actor?: string;
+  entityType: ActivityEntityType;
+  entityId?: string;
+  details?: string;
 }
 
 export type SortOrder = 'newest' | 'oldest';
@@ -102,6 +126,8 @@ export interface TemplateItemDefinition
   status?: ItemStatus;
 }
 
+export type TemplatePublishStatus = 'draft' | 'published';
+
 export interface TemplateVariant {
   id: string;
   name: 'Essentials' | 'Standard' | 'Full' | string;
@@ -128,6 +154,10 @@ export interface Template {
   emoji: string;
   tags: string[];
   tone: 'Personal' | 'Enterprise' | 'Hybrid';
+  status: TemplatePublishStatus;
+  defaultUnit?: string;
+  defaultPriceSource?: PriceSource;
+  defaultCategory?: string;
   variants: TemplateVariant[];
   metrics: TemplateMetrics;
 }
@@ -160,10 +190,13 @@ export interface ZPPAImportBatch {
   promotedAt?: string;
 }
 
+export type MerchantStatus = 'Up-to-date' | 'Due' | 'Stale' | 'Suspended';
+
 export interface Merchant {
     id: string;
     name: string;
     logoUrl: string;
+    status?: MerchantStatus;
 }
 
 export type MerchantLifecycleStatus = 'Pending Docs' | 'In Review' | 'Approved' | 'Live' | 'Suspended';
@@ -177,6 +210,7 @@ export interface MerchantProfileDetail extends Merchant {
     lifecycleStatus: MerchantLifecycleStatus;
     lastPriceUpdate: string;
     nextReminderAt: string;
+    status: MerchantStatus;
 }
 
 export type PriceListStatus = 'Draft' | 'Submitted' | 'Validating' | 'Accepted' | 'Rejected';
@@ -228,6 +262,14 @@ export interface Quote {
     timeline?: QuoteTimelineEntry[];
 }
 
+export interface POTimelineEntry {
+    id: string;
+    label: string;
+    timestamp: string;
+    status?: POStatus;
+    description?: string;
+}
+
 export interface PurchaseOrder {
     id: string;
     reference: string;
@@ -237,4 +279,5 @@ export interface PurchaseOrder {
     status: POStatus;
     issuedAt: string;
     total: number;
+    timeline?: POTimelineEntry[];
 }

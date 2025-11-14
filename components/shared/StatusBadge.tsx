@@ -15,6 +15,14 @@ const statusColors: Record<string, string> = {
   [POStatus.Fulfilled]: 'bg-green-500',
   [POStatus.Partial]: 'bg-amber-500',
   [POStatus.Delayed]: 'bg-rose-500',
+  Live: 'bg-emerald-600',
+  Approved: 'bg-indigo-600',
+  'In Review': 'bg-amber-600',
+  'Pending Docs': 'bg-slate-500',
+  'Up-to-date': 'bg-emerald-500',
+  Due: 'bg-amber-500',
+  Stale: 'bg-orange-500',
+  Suspended: 'bg-rose-600',
 };
 
 interface StatusBadgeProps {
