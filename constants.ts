@@ -7,9 +7,10 @@ import {
   POStatus,
   ShoppingList,
   BudgetItem,
-  ChatMessage,
   MerchantProfileDetail,
   PriceListUpload,
+  QuoteAttachment,
+  QuoteTimelineEntry,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -394,32 +395,92 @@ export const MOCK_LISTS: ShoppingList[] = [
     }
 ];
 
+const attachment = (filename: string, uploadedBy: string, uploadedAt: string): QuoteAttachment => ({
+  id: uuidv4(),
+  filename,
+  uploadedBy,
+  uploadedAt,
+});
+
+const timelineEntry = (
+  label: string,
+  timestamp: string,
+  status?: QuoteStatus,
+  description?: string,
+): QuoteTimelineEntry => ({
+  id: uuidv4(),
+  label,
+  timestamp,
+  status,
+  description,
+});
+
 export const MOCK_QUOTES: Quote[] = [
-    {
-        id: 'quote_01',
-        reference: 'Q-2023-001',
-        listName: 'Office Refresh Q3',
-        requester: 'Procurement Dept.',
-        merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
-        status: QuoteStatus.Finalized,
-        submittedAt: '2023-09-18T14:30:00Z',
-        items: MOCK_LISTS[0].items.filter(i => !i.flags.includes('Crossed')),
-        chatHistory: [
-            { id: uuidv4(), sender: 'Procurement', text: 'Hi, can you confirm stock for all items?', timestamp: '2023-09-18T15:00:00Z' },
-            { id: uuidv4(), sender: 'Merchant', text: 'Yes, all items are in stock and ready for delivery.', timestamp: '2023-09-18T15:05:00Z' },
-            { id: uuidv4(), sender: 'Procurement', text: 'Great, thank you. We will finalize shortly.', timestamp: '2023-09-18T15:06:00Z' },
-        ]
-    },
-    {
-        id: 'quote_02',
-        reference: 'Q-2023-002',
-        listName: 'New Site Setup',
-        requester: 'Procurement Dept.',
-        merchants: [MOCK_MERCHANTS[0]],
-        status: QuoteStatus.Submitted,
-        submittedAt: '2023-09-20T09:00:00Z',
-        items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),
-    }
+  {
+    id: 'quote_01',
+    reference: 'Q-2023-001',
+    listName: 'Office Refresh Q3',
+    requester: 'Procurement Dept.',
+    merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
+    status: QuoteStatus.Finalized,
+    submittedAt: '2023-09-18T14:30:00Z',
+    items: MOCK_LISTS[0].items.filter((i) => !i.flags.includes('Crossed')),
+    chatHistory: [
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Hi, can you confirm stock for all items?',
+        timestamp: '2023-09-18T15:00:00Z',
+      },
+      {
+        id: uuidv4(),
+        sender: 'Merchant',
+        text: 'Yes, all items are in stock and ready for delivery.',
+        timestamp: '2023-09-18T15:05:00Z',
+      },
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Great, thank you. We will finalize shortly.',
+        timestamp: '2023-09-18T15:06:00Z',
+        attachments: [attachment('Stock-confirmation.pdf', 'Procurement', '2023-09-18T15:06:00Z')],
+      },
+    ],
+    attachments: [
+      attachment('Office-refresh-specs.xlsx', 'Procurement', '2023-09-17T08:22:00Z'),
+      attachment('Merchant-quote.pdf', 'Merchant', '2023-09-18T12:10:00Z'),
+    ],
+    timeline: [
+      timelineEntry('Request drafted', '2023-09-15T09:00:00Z', QuoteStatus.Draft),
+      timelineEntry('Submitted to merchants', '2023-09-16T10:05:00Z', QuoteStatus.Submitted),
+      timelineEntry('Merchants acknowledged', '2023-09-17T15:20:00Z', QuoteStatus.Acknowledged),
+      timelineEntry('Proforma received', '2023-09-18T13:45:00Z', QuoteStatus.ProformaReady),
+      timelineEntry('Finalized internally', '2023-09-18T15:15:00Z', QuoteStatus.Finalized),
+    ],
+  },
+  {
+    id: 'quote_02',
+    reference: 'Q-2023-002',
+    listName: 'New Site Setup',
+    requester: 'Procurement Dept.',
+    merchants: [MOCK_MERCHANTS[0]],
+    status: QuoteStatus.Submitted,
+    submittedAt: '2023-09-20T09:00:00Z',
+    items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),
+    chatHistory: [
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Please confirm expected delivery timelines.',
+        timestamp: '2023-09-20T09:15:00Z',
+      },
+    ],
+    attachments: [attachment('Site-drawings.dwg', 'Procurement', '2023-09-19T17:30:00Z')],
+    timeline: [
+      timelineEntry('Request drafted', '2023-09-18T11:00:00Z', QuoteStatus.Draft),
+      timelineEntry('Submitted to merchants', '2023-09-19T08:50:00Z', QuoteStatus.Submitted),
+    ],
+  },
 ];
 
 export const MOCK_POS: PurchaseOrder[] = [
