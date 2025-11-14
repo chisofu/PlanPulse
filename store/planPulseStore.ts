@@ -35,6 +35,10 @@ export type PlanPulseState = {
   addItemToList: (listId: string, item: BudgetItem) => void;
   updateItemInList: (listId: string, item: BudgetItem) => void;
   deleteItemFromList: (listId: string, itemId: string) => void;
+  deleteItemsFromList: (listId: string, itemIds: string[]) => void;
+  bulkUpdateItemsInList: (listId: string, itemIds: string[], updates: Partial<BudgetItem>) => void;
+  reorderItemsInList: (listId: string, sourceIndex: number, destinationIndex: number) => void;
+  restoreItemsInList: (listId: string, entries: { item: BudgetItem; index: number }[]) => void;
   setActiveList: (listId?: string) => void;
   addQuoteChatMessage: (
     quoteId: string,
@@ -158,6 +162,56 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
             ? { ...list, items: list.items.filter((item) => item.id !== itemId) }
             : list
         ),
+      }));
+    },
+    deleteItemsFromList: (listId: string, itemIds: string[]) => {
+      const idSet = new Set(itemIds);
+      set((state) => ({
+        lists: state.lists.map((list) =>
+          list.id === listId
+            ? { ...list, items: list.items.filter((item) => !idSet.has(item.id)) }
+            : list
+        ),
+      }));
+    },
+    bulkUpdateItemsInList: (listId: string, itemIds: string[], updates: Partial<BudgetItem>) => {
+      const idSet = new Set(itemIds);
+      set((state) => ({
+        lists: state.lists.map((list) =>
+          list.id === listId
+            ? {
+                ...list,
+                items: list.items.map((item) =>
+                  idSet.has(item.id) ? { ...item, ...updates } : item
+                ),
+              }
+            : list
+        ),
+      }));
+    },
+    reorderItemsInList: (listId: string, sourceIndex: number, destinationIndex: number) => {
+      set((state) => ({
+        lists: state.lists.map((list) => {
+          if (list.id !== listId) return list;
+          const items = [...list.items];
+          const [moved] = items.splice(sourceIndex, 1);
+          items.splice(destinationIndex, 0, moved);
+          return { ...list, items };
+        }),
+      }));
+    },
+    restoreItemsInList: (listId: string, entries: { item: BudgetItem; index: number }[]) => {
+      const sorted = [...entries].sort((a, b) => a.index - b.index);
+      set((state) => ({
+        lists: state.lists.map((list) => {
+          if (list.id !== listId) return list;
+          const items = [...list.items];
+          sorted.forEach(({ item, index }) => {
+            const safeIndex = Math.min(Math.max(index, 0), items.length);
+            items.splice(safeIndex, 0, item);
+          });
+          return { ...list, items };
+        }),
       }));
     },
     setActiveList: (listId?: string) => set({ activeListId: listId }),

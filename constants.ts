@@ -259,7 +259,11 @@ export const MOCK_TEMPLATES: Template[] = [
   },
 ];
 
-export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags' | 'quantity'>[] = [
+export const MOCK_ITEM_SUGGESTIONS: (Omit<BudgetItem, 'id' | 'flags' | 'quantity'> & {
+  priority?: BudgetItem['priority'];
+  completed?: boolean;
+  status?: BudgetItem['status'];
+})[] = [
   ...MOCK_TEMPLATES.flatMap((template) =>
     template.variants.flatMap((variant) =>
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
@@ -382,7 +386,12 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
 };
 
 export const MOCK_LISTS: ShoppingList[] = [
-    {
+  {
+    id: uuidv4(),
+    name: 'Office Refresh Q3',
+    createdAt: '2023-09-15T10:00:00Z',
+    items: [
+      {
         id: uuidv4(),
         name: 'Office Refresh Q3',
         description: 'Bulk supplies refresh for the Q3 office readiness initiative.',

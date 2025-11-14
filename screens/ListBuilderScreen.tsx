@@ -107,7 +107,7 @@ const BudgetItemRow: React.FC<{
     onCancelEdit();
   };
 
-  if (isEditing) {
+  if (editing) {
     return (
       <div className="p-3 bg-white border-b-2 border-indigo-100 space-y-3 animate-fade-in">
         <div>
@@ -196,6 +196,52 @@ const BudgetItemRow: React.FC<{
             </select>
           </div>
         </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-xs font-medium text-slate-500">Priority</label>
+            <select
+              name="priority"
+              value={draft.priority}
+              onChange={handleChange}
+              className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              {priorityOptions.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500">Status</label>
+            <select
+              name="status"
+              value={draft.status}
+              onChange={handleChange}
+              className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center mt-6 space-x-2">
+            <input
+              id={`completed-${item.id}`}
+              type="checkbox"
+              checked={draft.completed}
+              onChange={(event) =>
+                setDraft((prev) => ({ ...prev, completed: event.target.checked }))
+              }
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <label htmlFor={`completed-${item.id}`} className="text-sm font-medium text-slate-600">
+              Mark as completed
+            </label>
+          </div>
+        </div>
         <div className="flex justify-end items-center space-x-2 pt-2">
           <button
             type="button"
@@ -215,6 +261,8 @@ const BudgetItemRow: React.FC<{
       </div>
     );
   }
+
+  const completed = item.completed || item.flags.includes('Crossed');
 
   return (
     <div
@@ -286,7 +334,10 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const setListDateRange = usePlanPulseStore((state) => state.setListDateRange);
   const addItemToList = usePlanPulseStore((state) => state.addItemToList);
   const updateItemInList = usePlanPulseStore((state) => state.updateItemInList);
-  const deleteItemFromList = usePlanPulseStore((state) => state.deleteItemFromList);
+  const deleteItemsFromList = usePlanPulseStore((state) => state.deleteItemsFromList);
+  const bulkUpdateItemsInList = usePlanPulseStore((state) => state.bulkUpdateItemsInList);
+  const reorderItemsInList = usePlanPulseStore((state) => state.reorderItemsInList);
+  const restoreItemsInList = usePlanPulseStore((state) => state.restoreItemsInList);
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const createList = usePlanPulseStore((state) => state.createList);
 
@@ -314,7 +365,14 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     }
   }, [activeListId, lists, setActiveListId]);
 
-  const activeList = activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
+  const activeList = useMemo<ShoppingList | null>(() => {
+    return activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
+  }, [activeListId, lists]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+    setFocusedItemId(activeList?.items[0]?.id ?? null);
+  }, [activeList?.id]);
 
   const filteredLists = useMemo(() => {
     return lists.filter((list) => {
@@ -391,12 +449,21 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
 
   const handleUpdateItem = (item: BudgetItem) => {
     if (!activeList) return;
-    updateItemInList(activeList.id, item);
+    const completed = item.completed || item.flags.includes('Crossed');
+    const flags = completed
+      ? Array.from(new Set([...(item.flags || []), 'Crossed']))
+      : item.flags.filter((flag) => flag !== 'Crossed');
+    updateItemInList(activeList.id, { ...item, flags });
+    setToast({ message: `Updated “${item.description}”.` });
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleToggleComplete = (item: BudgetItem) => {
     if (!activeList) return;
-    deleteItemFromList(activeList.id, itemId);
+    const completed = !(item.completed || item.flags.includes('Crossed'));
+    const flags = completed
+      ? Array.from(new Set([...(item.flags || []), 'Crossed']))
+      : item.flags.filter((flag) => flag !== 'Crossed');
+    updateItemInList(activeList.id, { ...item, completed, flags });
   };
 
   const handleSaveListName = () => {
