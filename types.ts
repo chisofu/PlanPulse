@@ -11,6 +11,13 @@ export enum Role {
   Admin = 'Admin',
 }
 
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: Role | 'Finance Analyst' | 'Project Lead';
+  avatarUrl?: string;
+}
+
 export enum PriceSource {
   ZPPA = 'ZPPA',
   Merchant = 'Merchant',
@@ -50,6 +57,8 @@ export interface BudgetItem {
   priority: ItemPriority;
   completed: boolean;
   status: ItemStatus;
+  assigneeId?: string;
+  lastUpdatedAt?: string;
 }
 
 export interface ItemSuggestionMetadata {
@@ -71,6 +80,21 @@ export interface ShoppingList {
   items: BudgetItem[];
   createdAt: string;
   dueDate?: string;
+  ownerId?: string;
+  collaboratorIds?: string[];
+  lastUpdatedAt?: string;
+}
+
+export type ActivityEntityType = 'list' | 'item' | 'template' | 'role' | 'search';
+
+export interface ActivityEntry {
+  id: string;
+  summary: string;
+  timestamp: string;
+  actor?: string;
+  entityType: ActivityEntityType;
+  entityId?: string;
+  details?: string;
 }
 
 export type SortOrder = 'newest' | 'oldest';
