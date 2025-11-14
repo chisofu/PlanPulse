@@ -9,6 +9,9 @@ import {
   PurchaseOrder,
   QuoteAttachment,
   QuoteTimelineEntry,
+  Template,
+  TemplateCategory,
+  TemplatePublishStatus,
 } from '../types';
 import { MOCK_LISTS, MOCK_QUOTES, MOCK_POS, MOCK_TEMPLATES } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,6 +29,9 @@ export type PlanPulseState = {
   templateSearchQuery: string;
   listStatusFilter: ListStatusFilter;
   templateStatusFilter: TemplateStatusFilter;
+  templateCategoryFilter: TemplateCategory | 'all';
+  templateVariantFilter: 'all' | string;
+  templatePublishFilter: 'all' | TemplatePublishStatus;
   listDateRange: DateRangeFilter;
   templateDateRange: DateRangeFilter;
   listSortOrder: SortOrder;
@@ -40,6 +46,15 @@ export type PlanPulseState = {
   reorderItemsInList: (listId: string, sourceIndex: number, destinationIndex: number) => void;
   restoreItemsInList: (listId: string, entries: { item: BudgetItem; index: number }[]) => void;
   setActiveList: (listId?: string) => void;
+  setTemplateSearchQuery: (value: string) => void;
+  setTemplateStatusFilter: (value: TemplateStatusFilter) => void;
+  setTemplateCategoryFilter: (value: TemplateCategory | 'all') => void;
+  setTemplateVariantFilter: (value: 'all' | string) => void;
+  setTemplatePublishFilter: (value: TemplatePublishStatus | 'all') => void;
+  setTemplateDateRange: (value: DateRangeFilter) => void;
+  upsertTemplate: (template: Template) => void;
+  deleteTemplate: (templateId: string) => void;
+  setTemplatePublishStatus: (templateId: string, status: TemplatePublishStatus) => void;
   addQuoteChatMessage: (
     quoteId: string,
     sender: ChatMessage['sender'],
@@ -63,6 +78,9 @@ type PersistedState = Pick<
   | 'templateSearchQuery'
   | 'listStatusFilter'
   | 'templateStatusFilter'
+  | 'templateCategoryFilter'
+  | 'templateVariantFilter'
+  | 'templatePublishFilter'
   | 'listDateRange'
   | 'templateDateRange'
   | 'listSortOrder'
@@ -89,6 +107,9 @@ export const getPersistableState = (state: PlanPulseState): PersistedState => ({
   templateSearchQuery: state.templateSearchQuery,
   listStatusFilter: state.listStatusFilter,
   templateStatusFilter: state.templateStatusFilter,
+  templateCategoryFilter: state.templateCategoryFilter,
+  templateVariantFilter: state.templateVariantFilter,
+  templatePublishFilter: state.templatePublishFilter,
   listDateRange: state.listDateRange,
   templateDateRange: state.templateDateRange,
   listSortOrder: state.listSortOrder,
@@ -111,6 +132,9 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     templateSearchQuery: persisted?.templateSearchQuery ?? '',
     listStatusFilter: persisted?.listStatusFilter ?? 'all',
     templateStatusFilter: persisted?.templateStatusFilter ?? 'all',
+    templateCategoryFilter: persisted?.templateCategoryFilter ?? 'all',
+    templateVariantFilter: persisted?.templateVariantFilter ?? 'all',
+    templatePublishFilter: persisted?.templatePublishFilter ?? 'all',
     listDateRange: persisted?.listDateRange ?? {},
     templateDateRange: persisted?.templateDateRange ?? {},
     listSortOrder: persisted?.listSortOrder ?? 'newest',
@@ -217,6 +241,35 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       }));
     },
     setActiveList: (listId?: string) => set({ activeListId: listId }),
+    setTemplateSearchQuery: (value: string) => set({ templateSearchQuery: value }),
+    setTemplateStatusFilter: (value: TemplateStatusFilter) => set({ templateStatusFilter: value }),
+    setTemplateCategoryFilter: (value: TemplateCategory | 'all') =>
+      set({ templateCategoryFilter: value }),
+    setTemplateVariantFilter: (value: 'all' | string) => set({ templateVariantFilter: value }),
+    setTemplatePublishFilter: (value: TemplatePublishStatus | 'all') =>
+      set({ templatePublishFilter: value }),
+    setTemplateDateRange: (value: DateRangeFilter) => set({ templateDateRange: value }),
+    upsertTemplate: (template: Template) => {
+      set((state) => {
+        const exists = state.templates.some((entry) => entry.id === template.id);
+        const templates = exists
+          ? state.templates.map((entry) => (entry.id === template.id ? template : entry))
+          : [...state.templates, template];
+        return { templates };
+      });
+    },
+    deleteTemplate: (templateId: string) => {
+      set((state) => ({
+        templates: state.templates.filter((template) => template.id !== templateId),
+      }));
+    },
+    setTemplatePublishStatus: (templateId: string, status: TemplatePublishStatus) => {
+      set((state) => ({
+        templates: state.templates.map((template) =>
+          template.id === templateId ? { ...template, status } : template,
+        ),
+      }));
+    },
     addQuoteChatMessage: (quoteId, sender, text, attachments) => {
       set((state) => ({
         quotes: state.quotes.map((quote) =>
@@ -411,6 +464,9 @@ export const selectListSearchQuery = (state: PlanPulseState) => state.listSearch
 export const selectTemplateSearchQuery = (state: PlanPulseState) => state.templateSearchQuery;
 export const selectListStatusFilter = (state: PlanPulseState) => state.listStatusFilter;
 export const selectTemplateStatusFilter = (state: PlanPulseState) => state.templateStatusFilter;
+export const selectTemplateCategoryFilter = (state: PlanPulseState) => state.templateCategoryFilter;
+export const selectTemplateVariantFilter = (state: PlanPulseState) => state.templateVariantFilter;
+export const selectTemplatePublishFilter = (state: PlanPulseState) => state.templatePublishFilter;
 export const selectListDateRange = (state: PlanPulseState) => state.listDateRange;
 export const selectTemplateDateRange = (state: PlanPulseState) => state.templateDateRange;
 export const selectListSortOrder = (state: PlanPulseState) => state.listSortOrder;

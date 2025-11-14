@@ -8,7 +8,7 @@ import {
   useNavigate,
 } from './vendor/react-router-dom';
 import AppShell from './components/layout/AppShell';
-import { Mode, Template, ShoppingList } from './types';
+import { Mode, Template, TemplateVariant, ShoppingList } from './types';
 import DashboardScreen from './screens/DashboardScreen';
 import TemplatesScreen from './screens/TemplatesScreen';
 import ListBuilderScreen from './screens/ListBuilderScreen';
@@ -136,20 +136,8 @@ const TemplatesRoute: React.FC<{ mode: Mode }> = ({ mode }) => {
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const setActiveList = usePlanPulseStore((state) => state.setActiveList);
 
-  const handleSelectTemplate = (template: Template) => {
-    const newList: ShoppingList = {
-      id: uuidv4(),
-      name: template.name,
-      createdAt: new Date().toISOString(),
-      items: template.variants.items.map((item) => ({
-        ...item,
-        id: uuidv4(),
-        flags: [],
-        priority: item.priority ?? 'Medium',
-        completed: item.completed ?? false,
-        status: item.status ?? 'Planned',
-      })),
-    };
+  const handleSelectTemplate = (template: Template, variant: TemplateVariant) => {
+    const newList = createListFromTemplateVariant(template, variant);
     upsertList(newList);
     setActiveList(newList.id);
     navigate('../lists');
