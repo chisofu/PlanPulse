@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Mode, BudgetItem, ShoppingList, PriceSource, Template } from '../types';
-import { usePlanPulseStore, selectLists, selectActiveListId } from '../store/planPulseStore';
+import { Mode, BudgetItem, ShoppingList, PriceSource } from '../types';
+import {
+  usePlanPulseStore,
+  selectLists,
+  selectActiveListId,
+  selectListSearchQuery,
+  selectListStatusFilter,
+  selectListDateRange,
+} from '../store/planPulseStore';
 import { formatCurrency } from '../constants';
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
@@ -415,9 +422,6 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const restoreItemsInList = usePlanPulseStore((state) => state.restoreItemsInList);
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const createList = usePlanPulseStore((state) => state.createList);
-  const upsertTemplate = usePlanPulseStore((state) => state.upsertTemplate);
-  const suggestionsCatalog = usePlanPulseStore(selectItemSuggestions);
-  const categoryTaxonomy = usePlanPulseStore(selectCategoryTaxonomy);
   const recordItemSuggestion = usePlanPulseStore((state) => state.recordItemSuggestion);
   const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
 
@@ -508,6 +512,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       unitPrice: 0,
       priceSource: PriceSource.ZPPA,
       flags: [],
+      priority: 'Medium',
+      completed: false,
+      status: 'Planned',
     };
     addItemToList(activeList.id, newItem);
     setNewItemDesc('');
@@ -524,6 +531,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       unitPrice: 0,
       priceSource: PriceSource.ZPPA,
       flags: [],
+      priority: 'Medium',
+      completed: false,
+      status: 'Planned',
     };
     addItemToList(activeList.id, newItem);
     setEditingItemId(newItem.id);

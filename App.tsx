@@ -151,7 +151,7 @@ const QuotesRoute: React.FC = () => {
   return (
     <QuotesScreen
       onCreatePurchaseOrder={(quote) => {
-        navigate(`../purchase-orders/new/${quote.id}`);
+        navigate(`../purchase-orders`, { state: { createFromQuoteId: quote.id } });
       }}
     />
   );

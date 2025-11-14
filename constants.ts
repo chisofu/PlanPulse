@@ -11,6 +11,7 @@ import {
   PriceListUpload,
   QuoteAttachment,
   QuoteTimelineEntry,
+  POTimelineEntry,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -458,46 +459,219 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
   ],
 };
 
+export const MOCK_TEAM_MEMBERS: TeamMember[] = [
+  {
+    id: 'tm-anne',
+    name: 'Anne Mwewa',
+    role: Role.Procurement,
+    avatarUrl: 'https://i.pravatar.cc/150?u=anne',
+  },
+  {
+    id: 'tm-lubinda',
+    name: 'Lubinda Tembo',
+    role: 'Project Lead',
+    avatarUrl: 'https://i.pravatar.cc/150?u=lubinda',
+  },
+  {
+    id: 'tm-chipo',
+    name: 'Chipo Banda',
+    role: 'Finance Analyst',
+    avatarUrl: 'https://i.pravatar.cc/150?u=chipo',
+  },
+  {
+    id: 'tm-naledi',
+    name: 'Naledi Mwila',
+    role: Role.Admin,
+    avatarUrl: 'https://i.pravatar.cc/150?u=naledi',
+  },
+];
+
+const withDefaults = (item: Omit<BudgetItem, 'flags' | 'priority' | 'completed' | 'status'> & {
+  flags?: BudgetItem['flags'];
+  priority?: BudgetItem['priority'];
+  completed?: boolean;
+  status?: BudgetItem['status'];
+}): BudgetItem => ({
+  flags: [],
+  priority: 'Medium',
+  completed: false,
+  status: 'Planned',
+  ...item,
+  flags: item.flags ?? [],
+  priority: item.priority ?? 'Medium',
+  completed: item.completed ?? false,
+  status: item.status ?? 'Planned',
+});
+
 export const MOCK_LISTS: ShoppingList[] = [
   {
-    id: uuidv4(),
+    id: 'list-office-refresh',
     name: 'Office Refresh Q3',
+    description: 'Bulk supplies refresh for the Q3 office readiness initiative.',
     createdAt: '2023-09-15T10:00:00Z',
+    dueDate: '2023-09-30',
+    ownerId: 'tm-anne',
+    collaboratorIds: ['tm-lubinda', 'tm-chipo'],
+    lastUpdatedAt: '2023-09-18T15:30:00Z',
     items: [
-      {
+      withDefaults({
         id: uuidv4(),
-        name: 'Office Refresh Q3',
-        description: 'Bulk supplies refresh for the Q3 office readiness initiative.',
-        createdAt: '2023-09-15T10:00:00Z',
-        dueDate: '2023-09-30',
-        items: [
-            { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', quantity: 2, unitPrice: 850.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', quantity: 3, unitPrice: 75.00, priceSource: PriceSource.Merchant, flags: ['Crossed'] },
-        ]
-    },
-    {
+        description: 'A4 Printing Paper',
+        category: 'Stationery',
+        unit: 'Ream',
+        quantity: 10,
+        unitPrice: 110,
+        priceSource: PriceSource.Merchant,
+        flags: [],
+        assigneeId: 'tm-lubinda',
+        lastUpdatedAt: '2023-09-17T11:00:00Z',
+      }),
+      withDefaults({
         id: uuidv4(),
-        name: 'Community Clinic Launch',
-        createdAt: '2024-02-01T08:30:00Z',
-        dueDate: '2024-03-15',
-        items: [
-            { id: uuidv4(), description: 'Hospital Beds', category: 'Health', unit: 'Each', quantity: 6, unitPrice: 4200.00, priceSource: PriceSource.ZPPA, flags: [] },
-            { id: uuidv4(), description: 'Medical Consumables Starter Pack', category: 'Health', unit: 'Kit', quantity: 3, unitPrice: 2750.00, priceSource: PriceSource.Merchant, flags: [] }
-        ]
-    },
-    {
+        description: 'Black Toner Cartridge',
+        category: 'Stationery',
+        unit: 'Each',
+        quantity: 2,
+        unitPrice: 850,
+        priceSource: PriceSource.Merchant,
+        assigneeId: 'tm-chipo',
+        priority: 'High',
+        lastUpdatedAt: '2023-09-18T09:40:00Z',
+      }),
+      withDefaults({
         id: uuidv4(),
-        name: 'Household Groceries January',
-        createdAt: '2024-12-28T07:45:00Z',
-        dueDate: '2025-01-05',
-        items: [
-            { id: uuidv4(), description: 'Maize Meal 25kg', category: 'Groceries', unit: 'Bag', quantity: 2, unitPrice: 175.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Cooking Oil 5L', category: 'Groceries', unit: 'Bottle', quantity: 1, unitPrice: 185.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Fresh Produce Assortment', category: 'Groceries', unit: 'Hamper', quantity: 1, unitPrice: 260.00, priceSource: PriceSource.Merchant, flags: [] }
-        ]
-    }
+        description: 'Whiteboard Markers',
+        category: 'Stationery',
+        unit: 'Pack',
+        quantity: 3,
+        unitPrice: 75,
+        priceSource: PriceSource.Merchant,
+        flags: ['Crossed'],
+        completed: true,
+        assigneeId: 'tm-lubinda',
+        status: 'Received',
+        lastUpdatedAt: '2023-09-18T10:05:00Z',
+      }),
+    ],
+  },
+  {
+    id: 'list-clinic-launch',
+    name: 'Community Clinic Launch',
+    description: 'Starter kit for the new community clinic opening in Kabwe.',
+    createdAt: '2024-02-01T08:30:00Z',
+    dueDate: '2024-03-15',
+    ownerId: 'tm-naledi',
+    collaboratorIds: ['tm-anne', 'tm-chipo'],
+    lastUpdatedAt: '2024-02-20T13:10:00Z',
+    items: [
+      withDefaults({
+        id: uuidv4(),
+        description: 'Hospital Beds',
+        category: 'Health',
+        unit: 'Each',
+        quantity: 6,
+        unitPrice: 4200,
+        priceSource: PriceSource.ZPPA,
+        assigneeId: 'tm-anne',
+        priority: 'High',
+      }),
+      withDefaults({
+        id: uuidv4(),
+        description: 'Medical Consumables Starter Pack',
+        category: 'Health',
+        unit: 'Kit',
+        quantity: 3,
+        unitPrice: 2750,
+        priceSource: PriceSource.Merchant,
+        assigneeId: 'tm-chipo',
+        status: 'In Progress',
+      }),
+      withDefaults({
+        id: uuidv4(),
+        description: 'Solar Backup Kit 5kVA',
+        category: 'Energy',
+        unit: 'Each',
+        quantity: 1,
+        unitPrice: 23500,
+        priceSource: PriceSource.Merchant,
+        priority: 'High',
+        assigneeId: 'tm-lubinda',
+      }),
+    ],
+  },
+  {
+    id: 'list-household-january',
+    name: 'Household Groceries January',
+    description: 'Household essentials for the Musonda family summer break.',
+    createdAt: '2024-12-28T07:45:00Z',
+    dueDate: '2025-01-05',
+    ownerId: 'tm-lubinda',
+    collaboratorIds: ['tm-anne'],
+    lastUpdatedAt: '2024-12-29T10:20:00Z',
+    items: [
+      withDefaults({
+        id: uuidv4(),
+        description: 'Maize Meal 25kg',
+        category: 'Groceries',
+        unit: 'Bag',
+        quantity: 2,
+        unitPrice: 175,
+        priceSource: PriceSource.Merchant,
+        assigneeId: 'tm-lubinda',
+      }),
+      withDefaults({
+        id: uuidv4(),
+        description: 'Cooking Oil 5L',
+        category: 'Groceries',
+        unit: 'Bottle',
+        quantity: 1,
+        unitPrice: 185,
+        priceSource: PriceSource.Merchant,
+        assigneeId: 'tm-anne',
+        status: 'Ordered',
+      }),
+      withDefaults({
+        id: uuidv4(),
+        description: 'Fresh Produce Assortment',
+        category: 'Groceries',
+        unit: 'Hamper',
+        quantity: 1,
+        unitPrice: 260,
+        priceSource: PriceSource.Merchant,
+      }),
+    ],
+  },
 ];
+
+export const MOCK_ACTIVITY: ActivityEntry[] = [
+  {
+    id: uuidv4(),
+    summary: 'Anne assigned Lubinda to source solar backup kit',
+    timestamp: '2024-02-20T13:15:00Z',
+    actor: 'Anne Mwewa',
+    entityType: 'item',
+    entityId: 'list-clinic-launch',
+    details: 'Community Clinic Launch',
+  },
+  {
+    id: uuidv4(),
+    summary: 'Naledi reassigned Office Refresh Q3 to Anne',
+    timestamp: '2023-09-18T15:45:00Z',
+    actor: 'Naledi Mwila',
+    entityType: 'list',
+    entityId: 'list-office-refresh',
+    details: 'Owner updated to Anne Mwewa',
+  },
+  {
+    id: uuidv4(),
+    summary: 'Search saved: “Clinic launch solar”',
+    timestamp: '2024-02-19T08:12:00Z',
+    actor: 'System',
+    entityType: 'search',
+    details: 'Dashboard quick search history',
+  },
+];
+
 
 const attachment = (filename: string, uploadedBy: string, uploadedAt: string): QuoteAttachment => ({
   id: uuidv4(),
@@ -512,6 +686,19 @@ const timelineEntry = (
   status?: QuoteStatus,
   description?: string,
 ): QuoteTimelineEntry => ({
+  id: uuidv4(),
+  label,
+  timestamp,
+  status,
+  description,
+});
+
+const poTimelineEntry = (
+  label: string,
+  timestamp: string,
+  status?: POStatus,
+  description?: string,
+): POTimelineEntry => ({
   id: uuidv4(),
   label,
   timestamp,
@@ -588,16 +775,50 @@ export const MOCK_QUOTES: Quote[] = [
 ];
 
 export const MOCK_POS: PurchaseOrder[] = [
-    {
-        id: 'po_01',
-        reference: 'PO-2023-001',
-        quoteReference: 'Q-2023-001',
-        buyer: 'Our Company Inc.',
-        seller: MOCK_MERCHANTS[2],
-        status: POStatus.Fulfilled,
-        issuedAt: '2023-09-22T11:00:00Z',
-        total: MOCK_QUOTES[0].items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0),
-    }
+  {
+    id: 'po_01',
+    reference: 'PO-2023-001',
+    quoteReference: 'Q-2023-001',
+    buyer: MOCK_QUOTES[0].requester,
+    seller: MOCK_MERCHANTS[2],
+    status: POStatus.Fulfilled,
+    issuedAt: '2023-09-22T11:00:00Z',
+    total: MOCK_QUOTES[0].items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    timeline: [
+      poTimelineEntry('PO issued to Corporate Stationers', '2023-09-22T11:00:00Z', POStatus.Issued),
+      poTimelineEntry(
+        'Supplier confirmed delivery window',
+        '2023-09-23T09:30:00Z',
+        undefined,
+        'Delivery scheduled within 5 working days.',
+      ),
+      poTimelineEntry(
+        'Goods delivered and receipted',
+        '2023-09-28T16:45:00Z',
+        POStatus.Fulfilled,
+        'All 18 line items received in full.',
+      ),
+    ],
+  },
+  {
+    id: 'po_02',
+    reference: 'PO-2023-002',
+    quoteReference: 'Q-2023-002',
+    buyer: MOCK_QUOTES[1].requester,
+    seller: MOCK_MERCHANTS[0],
+    status: POStatus.Partial,
+    issuedAt: '2023-10-02T08:15:00Z',
+    total: MOCK_QUOTES[1].items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    timeline: [
+      poTimelineEntry('PO created for site setup', '2023-10-02T08:15:00Z', POStatus.Issued),
+      poTimelineEntry(
+        'First delivery received',
+        '2023-10-07T17:00:00Z',
+        POStatus.Partial,
+        'Awaiting structural steel components.',
+      ),
+    ],
+  },
 ];
 
 
