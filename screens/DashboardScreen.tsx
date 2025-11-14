@@ -22,6 +22,8 @@ import {
   selectListDateRange,
 } from '../store/planPulseStore';
 import { getListStatus } from '../utils/search';
+import { getAccentTokensForMode } from '../styles/theme';
+import { useThemeAppearance } from '../styles/themeContext';
 import { MOCK_MERCHANTS } from '../constants';
 import { getListStatus, matchesDateRange } from '../utils/search';
 
@@ -100,7 +102,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const isPricePulse = mode === Mode.PricePulse;
-  const modeToken = themeTokens.modeStyles[isPricePulse ? 'pricepulse' : 'budgetpulse'];
+  const appearance = useThemeAppearance();
+  const accentTokens = getAccentTokensForMode(mode, appearance);
 
   useEffect(() => {
     if (!lists.length) {
@@ -420,6 +423,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
             key={card.title}
             type="button"
             onClick={card.action}
+            className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all flex items-center space-x-4 w-full text-left border-t-4"
+            style={{ borderColor: accentTokens.accentColorBg }}
+          >
+            <div className="p-3 rounded-full" style={{ backgroundColor: accentTokens.accentSurface }}>
             className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{card.title}</p>

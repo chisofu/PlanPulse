@@ -1,0 +1,200 @@
+:root {
+  --transition-duration: 200ms;
+  --accent-color-bg: #0d9488;
+  --accent-color-text: #ffffff;
+  --accent-color-soft: #ccfbf1;
+}
+
+.theme-light {
+  color-scheme: light;
+  --color-app-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-strong: #e2e8f0;
+  --color-border: #e2e8f0;
+  --color-text-primary: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+  --color-text-on-accent: #ffffff;
+  --accent-pricepulse-bg: #0d9488;
+  --accent-pricepulse-surface: #ccfbf1;
+  --accent-budgetpulse-bg: #4f46e5;
+  --accent-budgetpulse-surface: #e0e7ff;
+}
+
+.theme-dark {
+  color-scheme: dark;
+  --color-app-background: #020617;
+  --color-surface: #0f172a;
+  --color-surface-subtle: #1e293b;
+  --color-surface-strong: #334155;
+  --color-border: #1f2937;
+  --color-text-primary: #e2e8f0;
+  --color-text-muted: #cbd5f5;
+  --color-text-subtle: #94a3b8;
+  --color-text-on-accent: #f8fafc;
+  --accent-pricepulse-bg: #115e59;
+  --accent-pricepulse-surface: rgba(13, 148, 136, 0.25);
+  --accent-budgetpulse-bg: #3730a3;
+  --accent-budgetpulse-surface: rgba(79, 70, 229, 0.25);
+}
+
+body {
+  background-color: var(--color-app-background);
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease;
+}
+
+.theme-transition,
+.theme-transition * {
+  transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease,
+    border-color var(--transition-duration) ease, fill var(--transition-duration) ease,
+    stroke var(--transition-duration) ease;
+}
+
+.bg-slate-50,
+.bg-slate-100,
+.bg-slate-200,
+.bg-white {
+  transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease;
+}
+
+.bg-slate-50 {
+  background-color: var(--color-app-background) !important;
+}
+
+.bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+.bg-slate-100,
+.hover\:bg-slate-100:hover,
+.hover\:bg-slate-50:hover {
+  background-color: var(--color-surface-subtle) !important;
+}
+
+.bg-slate-200,
+.hover\:bg-slate-200:hover {
+  background-color: var(--color-surface-strong) !important;
+}
+
+.text-slate-900,
+.text-slate-800,
+.text-slate-700 {
+  color: var(--color-text-primary) !important;
+}
+
+.text-slate-600,
+.text-slate-500 {
+  color: var(--color-text-muted) !important;
+}
+
+.text-slate-400 {
+  color: var(--color-text-subtle) !important;
+}
+
+.border-slate-200,
+.border-slate-300,
+.border-slate-100,
+.divide-slate-200 {
+  border-color: var(--color-border) !important;
+}
+
+.divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border) !important;
+}
+
+.text-pricepulse,
+.border-pricepulse,
+.bg-pricepulse,
+.bg-pricepulse-light,
+.hover\:border-pricepulse:hover {
+  transition: background-color var(--transition-duration) ease, border-color var(--transition-duration) ease,
+    color var(--transition-duration) ease;
+}
+
+.text-budgetpulse,
+.border-budgetpulse,
+.bg-budgetpulse,
+.bg-budgetpulse-light,
+.hover\:border-budgetpulse:hover {
+  transition: background-color var(--transition-duration) ease, border-color var(--transition-duration) ease,
+    color var(--transition-duration) ease;
+}
+
+.text-pricepulse {
+  color: var(--accent-pricepulse-bg) !important;
+}
+
+.text-budgetpulse {
+  color: var(--accent-budgetpulse-bg) !important;
+}
+
+.bg-pricepulse {
+  background-color: var(--accent-pricepulse-bg) !important;
+  color: var(--color-text-on-accent) !important;
+}
+
+.bg-budgetpulse {
+  background-color: var(--accent-budgetpulse-bg) !important;
+  color: var(--color-text-on-accent) !important;
+}
+
+.bg-pricepulse-light {
+  background-color: var(--accent-pricepulse-surface) !important;
+}
+
+.bg-budgetpulse-light {
+  background-color: var(--accent-budgetpulse-surface) !important;
+}
+
+.border-pricepulse,
+.hover\:border-pricepulse:hover {
+  border-color: var(--accent-pricepulse-bg) !important;
+}
+
+.border-budgetpulse,
+.hover\:border-budgetpulse:hover {
+  border-color: var(--accent-budgetpulse-bg) !important;
+}
+
+.focus\:ring-slate-400:focus {
+  --tw-ring-color: var(--color-surface-subtle);
+}
+
+.focus\:ring-offset-1:focus,
+.focus\:ring-offset-2:focus {
+  --tw-ring-offset-color: var(--color-app-background);
+}
+
+.focus\:ring-indigo-500:focus,
+.focus\:ring-budgetpulse:focus,
+.focus\:ring-indigo-500:focus-visible,
+.focus\:ring-budgetpulse:focus-visible,
+.focus\:ring-indigo-500:focus-within {
+  transition: box-shadow var(--transition-duration) ease;
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-subtle {
+  color: var(--color-text-subtle);
+}
+
+.bg-surface {
+  background-color: var(--color-surface);
+}
+
+.bg-surface-subtle {
+  background-color: var(--color-surface-subtle);
+}
+
+.border-subtle {
+  border-color: var(--color-border);
+}
+
+.text-on-accent {
+  color: var(--color-text-on-accent);
+}

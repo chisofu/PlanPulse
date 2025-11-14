@@ -2,10 +2,14 @@ import React from 'react';
 import { Mode } from '../../types';
 import ModeSwitcher from './ModeSwitcher';
 import NavigationRail, { NavigationItem } from './NavigationRail';
+import ThemeToggle from './ThemeToggle';
+import { ThemeAppearance, getAccentTokensForMode } from '../../styles/theme';
 
 interface AppShellProps {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
+  appearance: ThemeAppearance;
+  onThemeToggle: () => void;
   navigation: NavigationItem[];
   title: string;
   subtitle?: string;
@@ -27,9 +31,12 @@ const AppShell: React.FC<AppShellProps> = ({
   actions,
   navigationFooter,
   children,
+  appearance,
+  onThemeToggle,
 }) => {
+  const accentTokens = getAccentTokensForMode(mode, appearance);
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex theme-transition">
       <NavigationRail items={navigation} footer={navigationFooter} />
       <div className="flex-1 flex flex-col">
         <header className="bg-white shadow-sm sticky top-0 z-10">
@@ -52,7 +59,13 @@ const AppShell: React.FC<AppShellProps> = ({
             </div>
 
             <div className="flex items-center space-x-4">
-              <ModeSwitcher mode={mode} onChange={onModeChange} />
+              <ModeSwitcher mode={mode} onChange={onModeChange} appearance={appearance} />
+              <ThemeToggle
+                appearance={appearance}
+                onToggle={onThemeToggle}
+                accentColorBg={accentTokens.accentColorBg}
+                accentColorText={accentTokens.accentColorText}
+              />
               {actions}
               <img src="https://picsum.photos/seed/user/40" alt="User" className="w-10 h-10 rounded-full" />
             </div>
