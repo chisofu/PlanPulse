@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Mode, BudgetItem, ShoppingList, PriceSource } from '../types';
-import { usePlanPulseStore, selectLists, selectActiveListId } from '../store/planPulseStore';
+import {
+  usePlanPulseStore,
+  selectLists,
+  selectActiveListId,
+  selectListSearchQuery,
+  selectListStatusFilter,
+  selectListDateRange,
+} from '../store/planPulseStore';
 import { formatCurrency } from '../constants';
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
 import { fuzzyIncludes, getListStatus, matchesDateRange } from '../utils/search';
+import TemplateEditorModal from '../components/templates/TemplateEditorModal';
 
 interface ListBuilderScreenProps {
   mode: Mode;
@@ -32,6 +40,57 @@ const getSortComparator = (key: SortKey) => {
 
 const deriveIsChecked = (item: BudgetItem) =>
   item.flags.includes('Crossed') || item.flags.includes('Checked');
+
+const createTemplateFromShoppingList = (list: ShoppingList, mode: Mode): Template => {
+  const fallbackItem = list.items[0];
+  const defaultUnit = fallbackItem?.unit ?? 'Each';
+  const defaultPriceSource = fallbackItem?.priceSource ?? PriceSource.ZPPA;
+  const defaultCategory = fallbackItem?.category ?? 'General';
+  const estimatedBudget = list.items.reduce(
+    (total, item) => total + item.quantity * item.unitPrice,
+    0,
+  );
+
+  return {
+    id: uuidv4(),
+    name: `${list.name} Template`,
+    description: list.description || 'Generated from List Builder selections.',
+    category: 'Custom',
+    emoji: '📝',
+    tags: ['list-builder'],
+    tone: mode === Mode.PricePulse ? 'Hybrid' : 'Personal',
+    status: 'draft',
+    defaultUnit,
+    defaultPriceSource,
+    defaultCategory,
+    variants: [
+      {
+        id: uuidv4(),
+        name: 'Standard',
+        summary: 'Auto-generated from an existing shopping list.',
+        recommendedFor: 'Teams repeating this planning workflow',
+        estimatedBudget,
+        cadence: 'Ad-hoc',
+        lastRefreshed: new Date().toISOString().slice(0, 10),
+        sourceLabel: 'List Builder export',
+        items: list.items.map((item) => ({
+          description: item.description,
+          category: item.category,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          priceSource: item.priceSource,
+          benchmarkSource: item.priceSource,
+        })),
+      },
+    ],
+    metrics: {
+      adoptionRate: 0,
+      avgLines: list.items.length,
+      lastUsedAt: new Date().toISOString(),
+    },
+  };
+};
 
 const BudgetItemRow: React.FC<{
   item: BudgetItem;
@@ -363,8 +422,6 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const restoreItemsInList = usePlanPulseStore((state) => state.restoreItemsInList);
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const createList = usePlanPulseStore((state) => state.createList);
-  const suggestionsCatalog = usePlanPulseStore(selectItemSuggestions);
-  const categoryTaxonomy = usePlanPulseStore(selectCategoryTaxonomy);
   const recordItemSuggestion = usePlanPulseStore((state) => state.recordItemSuggestion);
   const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
 
@@ -378,6 +435,8 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const [nameDraft, setNameDraft] = useState('');
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateDraft, setTemplateDraft] = useState<Template | undefined>(undefined);
 
   useEffect(() => {
     if (!lists.length) {
@@ -453,6 +512,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       unitPrice: 0,
       priceSource: PriceSource.ZPPA,
       flags: [],
+      priority: 'Medium',
+      completed: false,
+      status: 'Planned',
     };
     addItemToList(activeList.id, newItem);
     setNewItemDesc('');
@@ -469,6 +531,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       unitPrice: 0,
       priceSource: PriceSource.ZPPA,
       flags: [],
+      priority: 'Medium',
+      completed: false,
+      status: 'Planned',
     };
     addItemToList(activeList.id, newItem);
     setEditingItemId(newItem.id);
@@ -555,6 +620,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   }, [activeList]);
 
+  const handleSaveAsTemplate = () => {
+    if (!activeList) return;
+    const draftTemplate = createTemplateFromShoppingList(activeList, mode);
+    setTemplateDraft(draftTemplate);
+    setIsTemplateModalOpen(true);
+  };
+
+  const closeTemplateModal = () => {
+    setIsTemplateModalOpen(false);
+    setTemplateDraft(undefined);
+  };
+
   return (
     <div className="flex flex-col space-y-4">
       <div className="bg-white border rounded-lg p-5 space-y-4">
@@ -636,6 +713,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-slate-700">Template actions</span>
+            <button
+              type="button"
+              onClick={handleSaveAsTemplate}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+              disabled={!activeList || activeList.items.length === 0}
+            >
+              Save as Template
+            </button>
+            <p className="text-xs text-slate-500">Capture this list as a reusable Essentials/Standard/Full starting point.</p>
           </div>
         </div>
 
@@ -822,6 +911,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
           </div>
         </div>
       </footer>
+      <TemplateEditorModal
+        isOpen={isTemplateModalOpen}
+        mode={mode}
+        initialTemplate={templateDraft}
+        onDismiss={closeTemplateModal}
+        onSaveDraft={(template) => {
+          upsertTemplate(template);
+        }}
+        onPublish={(template) => {
+          upsertTemplate(template);
+        }}
+      />
     </div>
   );
 };

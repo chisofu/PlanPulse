@@ -9,8 +9,23 @@ import {
   PurchaseOrder,
   QuoteAttachment,
   QuoteTimelineEntry,
+  ItemSuggestionMetadata,
+  DateRangeFilter,
+  ListStatusFilter,
+  TemplateStatusFilter,
+  SortOrder,
+  Role,
+  TeamMember,
+  ActivityEntry,
 } from '../types';
-import { MOCK_LISTS, MOCK_QUOTES, MOCK_POS, MOCK_TEMPLATES } from '../constants';
+import {
+  MOCK_LISTS,
+  MOCK_QUOTES,
+  MOCK_POS,
+  MOCK_TEMPLATES,
+  MOCK_TEAM_MEMBERS,
+  MOCK_ACTIVITY,
+} from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'planpulse_state_v1';
@@ -26,10 +41,28 @@ export type PlanPulseState = {
   templateSearchQuery: string;
   listStatusFilter: ListStatusFilter;
   templateStatusFilter: TemplateStatusFilter;
+  templateCategoryFilter: TemplateCategory | 'all';
+  templateVariantFilter: 'all' | string;
+  templatePublishFilter: 'all' | TemplatePublishStatus;
   listDateRange: DateRangeFilter;
   templateDateRange: DateRangeFilter;
   listSortOrder: SortOrder;
+  dashboardSearchQuery: string;
+  userRole: Role;
+  teamMembers: TeamMember[];
+  recentActivity: ActivityEntry[];
+  itemSuggestions: ItemSuggestionMetadata[];
+  categoryTaxonomy: string[];
   setMode: (mode: Mode) => void;
+  setUserRole: (role: Role) => void;
+  setListSearchQuery: (query: string) => void;
+  setTemplateSearchQuery: (query: string) => void;
+  setListStatusFilter: (filter: ListStatusFilter) => void;
+  setTemplateStatusFilter: (filter: TemplateStatusFilter) => void;
+  setListDateRange: (range: DateRangeFilter) => void;
+  setTemplateDateRange: (range: DateRangeFilter) => void;
+  setListSortOrder: (order: SortOrder) => void;
+  setDashboardSearchQuery: (query: string) => void;
   createList: (name?: string, dueDate?: string) => ShoppingList;
   upsertList: (list: ShoppingList) => void;
   addItemToList: (listId: string, item: BudgetItem) => void;
@@ -39,7 +72,19 @@ export type PlanPulseState = {
   bulkUpdateItemsInList: (listId: string, itemIds: string[], updates: Partial<BudgetItem>) => void;
   reorderItemsInList: (listId: string, sourceIndex: number, destinationIndex: number) => void;
   restoreItemsInList: (listId: string, entries: { item: BudgetItem; index: number }[]) => void;
+  delegateList: (listId: string, memberId?: string) => void;
+  delegateItem: (listId: string, itemId: string, memberId?: string) => void;
+  logActivity: (entry: Partial<ActivityEntry> & Pick<ActivityEntry, 'summary' | 'entityType'>) => void;
   setActiveList: (listId?: string) => void;
+  setTemplateSearchQuery: (value: string) => void;
+  setTemplateStatusFilter: (value: TemplateStatusFilter) => void;
+  setTemplateCategoryFilter: (value: TemplateCategory | 'all') => void;
+  setTemplateVariantFilter: (value: 'all' | string) => void;
+  setTemplatePublishFilter: (value: TemplatePublishStatus | 'all') => void;
+  setTemplateDateRange: (value: DateRangeFilter) => void;
+  upsertTemplate: (template: Template) => void;
+  deleteTemplate: (templateId: string) => void;
+  setTemplatePublishStatus: (templateId: string, status: TemplatePublishStatus) => void;
   addQuoteChatMessage: (
     quoteId: string,
     sender: ChatMessage['sender'],
@@ -63,9 +108,14 @@ type PersistedState = Pick<
   | 'templateSearchQuery'
   | 'listStatusFilter'
   | 'templateStatusFilter'
+  | 'templateCategoryFilter'
+  | 'templateVariantFilter'
+  | 'templatePublishFilter'
   | 'listDateRange'
   | 'templateDateRange'
   | 'listSortOrder'
+  | 'dashboardSearchQuery'
+  | 'userRole'
 >;
 
 const loadPersistedState = (): Partial<PersistedState> | undefined => {
@@ -89,9 +139,14 @@ export const getPersistableState = (state: PlanPulseState): PersistedState => ({
   templateSearchQuery: state.templateSearchQuery,
   listStatusFilter: state.listStatusFilter,
   templateStatusFilter: state.templateStatusFilter,
+  templateCategoryFilter: state.templateCategoryFilter,
+  templateVariantFilter: state.templateVariantFilter,
+  templatePublishFilter: state.templatePublishFilter,
   listDateRange: state.listDateRange,
   templateDateRange: state.templateDateRange,
   listSortOrder: state.listSortOrder,
+  dashboardSearchQuery: state.dashboardSearchQuery,
+  userRole: state.userRole,
 });
 
 export const persistenceKey = STORAGE_KEY;
@@ -100,6 +155,22 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
   const persisted = loadPersistedState();
   const initialLists = persisted?.lists?.length ? persisted.lists : [...MOCK_LISTS];
   const initialActiveList = persisted?.activeListId ?? initialLists[0]?.id;
+  const derivedCategories = Array.from(
+    new Set(initialLists.flatMap((list) => list.items.map((item) => item.category))),
+  ).sort((a, b) => a.localeCompare(b));
+  const getActorLabel = () => {
+    const role = get().userRole;
+    switch (role) {
+      case Role.Procurement:
+        return 'Procurement Lead';
+      case Role.Admin:
+        return 'Admin';
+      case Role.Merchant:
+        return 'Merchant Partner';
+      default:
+        return 'Personal';
+    }
+  };
   return {
     mode: Mode.PricePulse,
     lists: initialLists,
@@ -111,18 +182,40 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     templateSearchQuery: persisted?.templateSearchQuery ?? '',
     listStatusFilter: persisted?.listStatusFilter ?? 'all',
     templateStatusFilter: persisted?.templateStatusFilter ?? 'all',
+    templateCategoryFilter: persisted?.templateCategoryFilter ?? 'all',
+    templateVariantFilter: persisted?.templateVariantFilter ?? 'all',
+    templatePublishFilter: persisted?.templatePublishFilter ?? 'all',
     listDateRange: persisted?.listDateRange ?? {},
     templateDateRange: persisted?.templateDateRange ?? {},
     listSortOrder: persisted?.listSortOrder ?? 'newest',
+    dashboardSearchQuery: persisted?.dashboardSearchQuery ?? '',
+    userRole: persisted?.userRole ?? Role.Procurement,
+    teamMembers: [...MOCK_TEAM_MEMBERS],
+    recentActivity: [...MOCK_ACTIVITY],
+    itemSuggestions: [],
+    categoryTaxonomy: derivedCategories,
     setMode: (mode: Mode) => set({ mode }),
+    setUserRole: (role: Role) => set({ userRole: role }),
+    setListSearchQuery: (query: string) => set({ listSearchQuery: query }),
+    setTemplateSearchQuery: (query: string) => set({ templateSearchQuery: query }),
+    setListStatusFilter: (filter: ListStatusFilter) => set({ listStatusFilter: filter }),
+    setTemplateStatusFilter: (filter: TemplateStatusFilter) => set({ templateStatusFilter: filter }),
+    setListDateRange: (range: DateRangeFilter) => set({ listDateRange: range }),
+    setTemplateDateRange: (range: DateRangeFilter) => set({ templateDateRange: range }),
+    setListSortOrder: (order: SortOrder) => set({ listSortOrder: order }),
+    setDashboardSearchQuery: (query: string) => set({ dashboardSearchQuery: query }),
     createList: (name?: string, dueDate?: string) => {
+      const timestamp = new Date().toISOString();
       const newList: ShoppingList = {
         id: uuidv4(),
-        name: name ?? 'New List',
+        name: name?.trim() || 'Untitled List',
         description: '',
-        createdAt: new Date().toISOString(),
+        createdAt: timestamp,
         dueDate,
         items: [],
+        ownerId: undefined,
+        collaboratorIds: [],
+        lastUpdatedAt: timestamp,
       };
       set((state) => ({
         lists: [...state.lists, newList],
@@ -131,60 +224,105 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       return newList;
     },
     upsertList: (list: ShoppingList) => {
+      const timestamp = list.lastUpdatedAt ?? new Date().toISOString();
+      const nextList = { ...list, lastUpdatedAt: timestamp };
       set((state) => ({
-        lists: state.lists.some((l) => l.id === list.id)
-          ? state.lists.map((l) => (l.id === list.id ? list : l))
-          : [...state.lists, list],
-        activeListId: list.id,
+        lists: state.lists.some((l) => l.id === nextList.id)
+          ? state.lists.map((l) => (l.id === nextList.id ? nextList : l))
+          : [...state.lists, nextList],
+        activeListId: nextList.id,
       }));
     },
     addItemToList: (listId: string, item: BudgetItem) => {
+      const timestamp = new Date().toISOString();
+      const nextItem: BudgetItem = {
+        ...item,
+        flags: item.flags ?? [],
+        priority: item.priority ?? 'Medium',
+        completed: item.completed ?? false,
+        status: item.status ?? 'Planned',
+        lastUpdatedAt: timestamp,
+      };
       set((state) => ({
         lists: state.lists.map((list) =>
-          list.id === listId ? { ...list, items: [...list.items, item] } : list
+          list.id === listId
+            ? { ...list, items: [...list.items, nextItem], lastUpdatedAt: timestamp }
+            : list
         ),
       }));
     },
     updateItemInList: (listId: string, item: BudgetItem) => {
+      const timestamp = new Date().toISOString();
+      const nextItem: BudgetItem = {
+        ...item,
+        flags: item.flags ?? [],
+        priority: item.priority ?? 'Medium',
+        completed: item.completed ?? false,
+        status: item.status ?? 'Planned',
+        lastUpdatedAt: timestamp,
+      };
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
             ? {
                 ...list,
-                items: list.items.map((existing) => (existing.id === item.id ? item : existing)),
+                lastUpdatedAt: timestamp,
+                items: list.items.map((existing) => (existing.id === nextItem.id ? nextItem : existing)),
               }
             : list
         ),
       }));
     },
     deleteItemFromList: (listId: string, itemId: string) => {
+      const timestamp = new Date().toISOString();
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
-            ? { ...list, items: list.items.filter((item) => item.id !== itemId) }
+            ? {
+                ...list,
+                items: list.items.filter((item) => item.id !== itemId),
+                lastUpdatedAt: timestamp,
+              }
             : list
         ),
       }));
     },
     deleteItemsFromList: (listId: string, itemIds: string[]) => {
       const idSet = new Set(itemIds);
+      const timestamp = new Date().toISOString();
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
-            ? { ...list, items: list.items.filter((item) => !idSet.has(item.id)) }
+            ? {
+                ...list,
+                items: list.items.filter((item) => !idSet.has(item.id)),
+                lastUpdatedAt: timestamp,
+              }
             : list
         ),
       }));
     },
     bulkUpdateItemsInList: (listId: string, itemIds: string[], updates: Partial<BudgetItem>) => {
       const idSet = new Set(itemIds);
+      const timestamp = new Date().toISOString();
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
             ? {
                 ...list,
+                lastUpdatedAt: timestamp,
                 items: list.items.map((item) =>
-                  idSet.has(item.id) ? { ...item, ...updates } : item
+                  idSet.has(item.id)
+                    ? {
+                        ...item,
+                        ...updates,
+                        flags: updates.flags ?? item.flags,
+                        priority: updates.priority ?? item.priority,
+                        completed: updates.completed ?? item.completed,
+                        status: updates.status ?? item.status,
+                        lastUpdatedAt: timestamp,
+                      }
+                    : item
                 ),
               }
             : list
@@ -192,31 +330,153 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       }));
     },
     reorderItemsInList: (listId: string, sourceIndex: number, destinationIndex: number) => {
+      const timestamp = new Date().toISOString();
       set((state) => ({
         lists: state.lists.map((list) => {
           if (list.id !== listId) return list;
           const items = [...list.items];
           const [moved] = items.splice(sourceIndex, 1);
           items.splice(destinationIndex, 0, moved);
-          return { ...list, items };
+          return { ...list, items, lastUpdatedAt: timestamp };
         }),
       }));
     },
     restoreItemsInList: (listId: string, entries: { item: BudgetItem; index: number }[]) => {
       const sorted = [...entries].sort((a, b) => a.index - b.index);
+      const timestamp = new Date().toISOString();
       set((state) => ({
         lists: state.lists.map((list) => {
           if (list.id !== listId) return list;
           const items = [...list.items];
           sorted.forEach(({ item, index }) => {
             const safeIndex = Math.min(Math.max(index, 0), items.length);
-            items.splice(safeIndex, 0, item);
+            items.splice(safeIndex, 0, {
+              ...item,
+              flags: item.flags ?? [],
+              priority: item.priority ?? 'Medium',
+              completed: item.completed ?? false,
+              status: item.status ?? 'Planned',
+              lastUpdatedAt: timestamp,
+            });
           });
-          return { ...list, items };
+          return { ...list, items, lastUpdatedAt: timestamp };
         }),
       }));
     },
+    delegateList: (listId: string, memberId?: string) => {
+      const timestamp = new Date().toISOString();
+      const list = get().lists.find((entry) => entry.id === listId);
+      const member = memberId ? get().teamMembers.find((person) => person.id === memberId) : undefined;
+      set((state) => ({
+        lists: state.lists.map((entry) =>
+          entry.id === listId ? { ...entry, ownerId: memberId, lastUpdatedAt: timestamp } : entry,
+        ),
+      }));
+      if (!list) {
+        return;
+      }
+      const actorLabel = getActorLabel();
+      const summary = member
+        ? `${actorLabel} assigned ${member.name} to ${list.name}`
+        : `${actorLabel} cleared owner for ${list.name}`;
+      const details = member ? `Owner: ${member.name}` : 'Owner removed';
+      get().logActivity({
+        summary,
+        entityType: 'list',
+        entityId: listId,
+        details,
+        timestamp,
+      });
+    },
+    delegateItem: (listId: string, itemId: string, memberId?: string) => {
+      const list = get().lists.find((entry) => entry.id === listId);
+      if (!list) {
+        return;
+      }
+      const item = list.items.find((entry) => entry.id === itemId);
+      if (!item) {
+        return;
+      }
+      const timestamp = new Date().toISOString();
+      const member = memberId ? get().teamMembers.find((person) => person.id === memberId) : undefined;
+      set((state) => ({
+        lists: state.lists.map((entry) =>
+          entry.id === listId
+            ? {
+                ...entry,
+                lastUpdatedAt: timestamp,
+                items: entry.items.map((line) =>
+                  line.id === itemId
+                    ? {
+                        ...line,
+                        assigneeId: memberId,
+                        lastUpdatedAt: timestamp,
+                      }
+                    : line,
+                ),
+              }
+            : entry,
+        ),
+      }));
+      const actorLabel = getActorLabel();
+      const summary = member
+        ? `${actorLabel} delegated ${item.description} to ${member.name}`
+        : `${actorLabel} cleared assignment for ${item.description}`;
+      const details = member ? `Assignee: ${member.name}` : 'Assignee removed';
+      get().logActivity({
+        summary,
+        entityType: 'item',
+        entityId: itemId,
+        details,
+        timestamp,
+      });
+    },
+    logActivity: (entry) => {
+      const actor = entry.actor ?? getActorLabel();
+      const timestamp = entry.timestamp ?? new Date().toISOString();
+      const activity: ActivityEntry = {
+        id: entry.id ?? uuidv4(),
+        summary: entry.summary,
+        timestamp,
+        actor,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        details: entry.details,
+      };
+      set((state) => ({
+        recentActivity: [activity, ...state.recentActivity].slice(0, 40),
+      }));
+    },
     setActiveList: (listId?: string) => set({ activeListId: listId }),
+    setTemplateSearchQuery: (value: string) => set({ templateSearchQuery: value }),
+    setTemplateStatusFilter: (value: TemplateStatusFilter) => set({ templateStatusFilter: value }),
+    setTemplateCategoryFilter: (value: TemplateCategory | 'all') =>
+      set({ templateCategoryFilter: value }),
+    setTemplateVariantFilter: (value: 'all' | string) => set({ templateVariantFilter: value }),
+    setTemplatePublishFilter: (value: TemplatePublishStatus | 'all') =>
+      set({ templatePublishFilter: value }),
+    setTemplateDateRange: (value: DateRangeFilter) => set({ templateDateRange: value }),
+    upsertTemplate: (template: Template) => {
+      set((state) => {
+        const exists = state.templates.some((entry) => entry.id === template.id);
+        const templates = exists
+          ? state.templates.map((entry) => (entry.id === template.id ? template : entry))
+          : [...state.templates, template];
+        return { templates };
+      });
+    },
+    deleteTemplate: (templateId: string) => {
+      set((state) => ({
+        templates: state.templates.filter((template) => template.id !== templateId),
+      }));
+    },
+    setTemplatePublishStatus: (templateId: string, status: TemplatePublishStatus) => {
+      set((state) => ({
+        templates: state.templates.map((template) =>
+          template.id === templateId ? { ...template, status } : template,
+        ),
+      }));
+    },
     addQuoteChatMessage: (quoteId, sender, text, attachments) => {
       set((state) => ({
         quotes: state.quotes.map((quote) =>
@@ -411,6 +671,15 @@ export const selectListSearchQuery = (state: PlanPulseState) => state.listSearch
 export const selectTemplateSearchQuery = (state: PlanPulseState) => state.templateSearchQuery;
 export const selectListStatusFilter = (state: PlanPulseState) => state.listStatusFilter;
 export const selectTemplateStatusFilter = (state: PlanPulseState) => state.templateStatusFilter;
+export const selectTemplateCategoryFilter = (state: PlanPulseState) => state.templateCategoryFilter;
+export const selectTemplateVariantFilter = (state: PlanPulseState) => state.templateVariantFilter;
+export const selectTemplatePublishFilter = (state: PlanPulseState) => state.templatePublishFilter;
 export const selectListDateRange = (state: PlanPulseState) => state.listDateRange;
 export const selectTemplateDateRange = (state: PlanPulseState) => state.templateDateRange;
 export const selectListSortOrder = (state: PlanPulseState) => state.listSortOrder;
+export const selectDashboardSearchQuery = (state: PlanPulseState) => state.dashboardSearchQuery;
+export const selectTeamMembers = (state: PlanPulseState) => state.teamMembers;
+export const selectRecentActivity = (state: PlanPulseState) => state.recentActivity;
+export const selectItemSuggestions = (state: PlanPulseState) => state.itemSuggestions;
+export const selectCategoryTaxonomy = (state: PlanPulseState) => state.categoryTaxonomy;
+export const selectUserRole = (state: PlanPulseState) => state.userRole;
