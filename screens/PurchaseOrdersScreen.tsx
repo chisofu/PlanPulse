@@ -1,0 +1,153 @@
+import React, { useMemo } from 'react';
+import { useParams, useNavigate } from '../vendor/react-router-dom';
+import { PurchaseOrder, POStatus } from '../types';
+import { usePlanPulseStore, selectPurchaseOrders, selectQuotes } from '../store/planPulseStore';
+import { formatCurrency, MOCK_MERCHANTS } from '../constants';
+import { v4 as uuidv4 } from 'uuid';
+
+export const PurchaseOrdersScreen: React.FC = () => {
+  const purchaseOrders = usePlanPulseStore(selectPurchaseOrders);
+  const navigate = useNavigate();
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold text-slate-800">Purchase Orders</h2>
+        <button
+          onClick={() => navigate('../quotes', { replace: false })}
+          className="px-4 py-2 text-sm font-semibold text-white bg-budgetpulse rounded-lg shadow-sm hover:bg-opacity-90"
+        >
+          Request from Quote
+        </button>
+      </div>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <ul className="divide-y divide-slate-200">
+          {purchaseOrders.length > 0 ? (
+            purchaseOrders.map((po) => (
+              <li key={po.id} className="p-4 hover:bg-slate-50">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold text-budgetpulse">{po.reference}</p>
+                    <p className="text-slate-600">{po.seller.name}</p>
+                    <p className="text-sm text-slate-400">Issued: {new Date(po.issuedAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800">{formatCurrency(po.total)}</p>
+                    <span className={`px-2 py-1 text-xs font-semibold text-white rounded-full ${po.status === POStatus.Fulfilled ? 'bg-green-500' : 'bg-amber-500'}`}>
+                      {po.status}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            ))
+          ) : (
+            <li className="p-8 text-center text-slate-500">No purchase orders found.</li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+export const POCreationScreen: React.FC = () => {
+  const { quoteId } = useParams();
+  const navigate = useNavigate();
+  const quotes = usePlanPulseStore(selectQuotes);
+  const upsertPurchaseOrder = usePlanPulseStore((state) => state.upsertPurchaseOrder);
+
+  const quote = quotes.find((q) => q.id === quoteId);
+
+  if (!quote) {
+    return (
+      <div className="bg-white border rounded-lg p-6">
+        <p className="text-slate-600">Quote not found. Please return to the quotes dashboard.</p>
+        <button onClick={() => navigate('../quotes')} className="mt-4 px-4 py-2 bg-budgetpulse text-white rounded-lg">
+          Back to Quotes
+        </button>
+      </div>
+    );
+  }
+
+  const total = useMemo(() => quote.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0), [quote.items]);
+  const seller = quote.merchants[0] || MOCK_MERCHANTS[0];
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const newPO: PurchaseOrder = {
+      id: uuidv4(),
+      reference: `PO-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+      quoteReference: quote.reference,
+      buyer: 'Our Company Inc.',
+      seller,
+      status: POStatus.Issued,
+      issuedAt: new Date().toISOString(),
+      total,
+    };
+    upsertPurchaseOrder(newPO);
+    navigate('../purchase-orders');
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-3xl font-bold text-slate-800 mb-6">Create Purchase Order</h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="font-semibold text-lg text-slate-700">From Quote: {quote.reference}</h3>
+            <p className="text-slate-500">{quote.listName}</p>
+          </div>
+          <div className="text-right">
+            <h3 className="font-semibold text-lg text-slate-700">Seller: {seller.name}</h3>
+            <p className="text-slate-500">Contact for details</p>
+          </div>
+        </div>
+        <div className="border-t border-b border-slate-200 py-4">
+          <h4 className="font-semibold text-md text-slate-600 mb-2">Order Summary</h4>
+          <ul className="divide-y divide-slate-100">
+            {quote.items.map((item) => (
+              <li key={item.id} className="py-2 flex justify-between">
+                <span className="text-slate-700">
+                  {item.description} (x{item.quantity})
+                </span>
+                <span className="font-medium text-slate-800">{formatCurrency(item.quantity * item.unitPrice)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="text-right">
+          <p className="text-slate-500">Total Amount</p>
+          <p className="text-3xl font-bold text-slate-900">{formatCurrency(total)}</p>
+        </div>
+        <div>
+          <label htmlFor="payment_instructions" className="block text-sm font-medium text-slate-700">
+            Payment Instructions
+          </label>
+          <textarea
+            id="payment_instructions"
+            rows={3}
+            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            defaultValue="Payment upon delivery."
+          />
+        </div>
+        <div>
+          <label htmlFor="delivery_terms" className="block text-sm font-medium text-slate-700">
+            Delivery Terms
+          </label>
+          <textarea
+            id="delivery_terms"
+            rows={3}
+            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            defaultValue="Deliver to main office within 7 working days."
+          />
+        </div>
+        <div className="flex justify-end">
+          <button type="submit" className="px-8 py-3 bg-budgetpulse text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors">
+            Submit Purchase Order
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default PurchaseOrdersScreen;
