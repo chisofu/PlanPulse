@@ -33,15 +33,26 @@ export enum POStatus {
     Delayed = 'Delayed'
 }
 
+export interface PriceHistoryEntry {
+  date: string;
+  price: number;
+  source: PriceSource;
+}
+
 export interface BudgetItem {
   id: string;
   description: string;
   category: string;
+  subcategory?: string;
   unit: string;
   quantity: number;
   unitPrice: number;
   priceSource: PriceSource;
   flags: ('Crossed' | 'Excluded')[];
+  imageUrl?: string;
+  privateNotes?: string;
+  sku?: string;
+  priceHistory?: PriceHistoryEntry[];
 }
 
 export interface ShoppingList {

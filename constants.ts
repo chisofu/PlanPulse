@@ -264,11 +264,51 @@ export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags' | 'quantity'
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
     )
   ),
-  { description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', unitPrice: 110, priceSource: PriceSource.Merchant },
-  { description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', unitPrice: 850, priceSource: PriceSource.Merchant },
-  { description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', unitPrice: 75, priceSource: PriceSource.Merchant },
-  { description: 'Laptop Charger', category: 'Electronics', unit: 'Each', unitPrice: 450, priceSource: PriceSource.Merchant },
-  { description: 'Safety Boots', category: 'Apparel', unit: 'Pair', unitPrice: 600, priceSource: PriceSource.Merchant },
+  {
+    description: 'A4 Printing Paper',
+    category: 'Stationery',
+    subcategory: 'Paper',
+    unit: 'Ream',
+    unitPrice: 110,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-PRINT-001',
+  },
+  {
+    description: 'Black Toner Cartridge',
+    category: 'Stationery',
+    subcategory: 'Printing Supplies',
+    unit: 'Each',
+    unitPrice: 850,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-TONER-009',
+  },
+  {
+    description: 'Whiteboard Markers',
+    category: 'Stationery',
+    subcategory: 'Meeting Room',
+    unit: 'Pack',
+    unitPrice: 75,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-MARK-004',
+  },
+  {
+    description: 'Laptop Charger',
+    category: 'Electronics',
+    subcategory: 'Accessories',
+    unit: 'Each',
+    unitPrice: 450,
+    priceSource: PriceSource.Merchant,
+    sku: 'EL-LAP-002',
+  },
+  {
+    description: 'Safety Boots',
+    category: 'Apparel',
+    subcategory: 'Protective Gear',
+    unit: 'Pair',
+    unitPrice: 600,
+    priceSource: PriceSource.Merchant,
+    sku: 'AP-BOOT-006',
+  },
 ].reduce((acc, current) => {
   if (!acc.find((item) => item.description === current.description)) {
     acc.push(current);
@@ -381,16 +421,66 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
 };
 
 export const MOCK_LISTS: ShoppingList[] = [
-    {
+  {
+    id: uuidv4(),
+    name: 'Office Refresh Q3',
+    createdAt: '2023-09-15T10:00:00Z',
+    items: [
+      {
         id: uuidv4(),
-        name: 'Office Refresh Q3',
-        createdAt: '2023-09-15T10:00:00Z',
-        items: [
-            { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', quantity: 2, unitPrice: 850.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', quantity: 3, unitPrice: 75.00, priceSource: PriceSource.Merchant, flags: ['Crossed'] },
-        ]
-    }
+        description: 'A4 Printing Paper',
+        category: 'Stationery',
+        subcategory: 'Paper',
+        unit: 'Ream',
+        quantity: 10,
+        unitPrice: 110.0,
+        priceSource: PriceSource.Merchant,
+        flags: [],
+        imageUrl: 'https://picsum.photos/seed/a4paper/120',
+        privateNotes: 'Bulk discount applied for orders above 5 reams.',
+        sku: 'ST-PRINT-001',
+        priceHistory: [
+          { date: '2024-12-01T00:00:00Z', price: 108, source: PriceSource.ZPPA },
+          { date: '2024-09-01T00:00:00Z', price: 110, source: PriceSource.Merchant },
+        ],
+      },
+      {
+        id: uuidv4(),
+        description: 'Black Toner Cartridge',
+        category: 'Stationery',
+        subcategory: 'Printing Supplies',
+        unit: 'Each',
+        quantity: 2,
+        unitPrice: 850.0,
+        priceSource: PriceSource.Merchant,
+        flags: [],
+        imageUrl: 'https://picsum.photos/seed/toner/120',
+        privateNotes: 'Confirm compatibility with HP LaserJet Pro.',
+        sku: 'ST-TONER-009',
+        priceHistory: [
+          { date: '2024-11-15T00:00:00Z', price: 830, source: PriceSource.Merchant },
+          { date: '2024-08-01T00:00:00Z', price: 845, source: PriceSource.ZPPA },
+        ],
+      },
+      {
+        id: uuidv4(),
+        description: 'Whiteboard Markers',
+        category: 'Stationery',
+        subcategory: 'Meeting Room',
+        unit: 'Pack',
+        quantity: 3,
+        unitPrice: 75.0,
+        priceSource: PriceSource.Merchant,
+        flags: ['Crossed'],
+        imageUrl: 'https://picsum.photos/seed/markers/120',
+        privateNotes: '',
+        sku: 'ST-MARK-004',
+        priceHistory: [
+          { date: '2024-10-10T00:00:00Z', price: 72, source: PriceSource.Merchant },
+        ],
+      },
+    ],
+  },
 ];
 
 export const MOCK_QUOTES: Quote[] = [
@@ -402,7 +492,7 @@ export const MOCK_QUOTES: Quote[] = [
         merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
         status: QuoteStatus.Finalized,
         submittedAt: '2023-09-18T14:30:00Z',
-        items: MOCK_LISTS[0].items.filter(i => !i.flags.includes('Crossed')),
+        items: MOCK_LISTS[0].items.filter(i => !i.flags.some((flag) => flag === 'Crossed' || flag === 'Excluded')),
         chatHistory: [
             { id: uuidv4(), sender: 'Procurement', text: 'Hi, can you confirm stock for all items?', timestamp: '2023-09-18T15:00:00Z' },
             { id: uuidv4(), sender: 'Merchant', text: 'Yes, all items are in stock and ready for delivery.', timestamp: '2023-09-18T15:05:00Z' },
