@@ -228,6 +228,14 @@ export interface Quote {
     timeline?: QuoteTimelineEntry[];
 }
 
+export interface POTimelineEntry {
+    id: string;
+    label: string;
+    timestamp: string;
+    status?: POStatus;
+    description?: string;
+}
+
 export interface PurchaseOrder {
     id: string;
     reference: string;
@@ -237,4 +245,5 @@ export interface PurchaseOrder {
     status: POStatus;
     issuedAt: string;
     total: number;
+    timeline?: POTimelineEntry[];
 }
