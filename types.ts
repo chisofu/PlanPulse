@@ -160,10 +160,13 @@ export interface ZPPAImportBatch {
   promotedAt?: string;
 }
 
+export type MerchantStatus = 'Up-to-date' | 'Due' | 'Stale' | 'Suspended';
+
 export interface Merchant {
     id: string;
     name: string;
     logoUrl: string;
+    status?: MerchantStatus;
 }
 
 export type MerchantLifecycleStatus = 'Pending Docs' | 'In Review' | 'Approved' | 'Live' | 'Suspended';
@@ -177,6 +180,7 @@ export interface MerchantProfileDetail extends Merchant {
     lifecycleStatus: MerchantLifecycleStatus;
     lastPriceUpdate: string;
     nextReminderAt: string;
+    status: MerchantStatus;
 }
 
 export type PriceListStatus = 'Draft' | 'Submitted' | 'Validating' | 'Accepted' | 'Rejected';

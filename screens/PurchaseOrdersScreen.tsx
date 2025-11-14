@@ -30,7 +30,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="font-semibold text-budgetpulse">{po.reference}</p>
-                    <p className="text-slate-600">{po.seller.name}</p>
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span>{po.seller.name}</span>
+                      {po.seller.status && <StatusBadge status={po.seller.status} />}
+                    </div>
                     <p className="text-sm text-slate-400">Issued: {new Date(po.issuedAt).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
@@ -97,8 +100,15 @@ export const POCreationScreen: React.FC = () => {
             <p className="text-slate-500">{quote.listName}</p>
           </div>
           <div className="text-right">
-            <h3 className="font-semibold text-lg text-slate-700">Seller: {seller.name}</h3>
-            <p className="text-slate-500">Contact for details</p>
+            <div className="flex items-center gap-2 justify-end">
+              <h3 className="font-semibold text-lg text-slate-700">Seller: {seller.name}</h3>
+              {seller.status && <StatusBadge status={seller.status} />}
+            </div>
+            <p className="text-slate-500">
+              {seller.status === 'Suspended'
+                ? 'Trading paused until compliance is restored.'
+                : 'Reach out for fulfilment details.'}
+            </p>
           </div>
         </div>
         <div className="border-t border-b border-slate-200 py-4">

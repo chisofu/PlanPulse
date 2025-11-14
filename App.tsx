@@ -16,6 +16,7 @@ import QuotesScreen from './screens/QuotesScreen';
 import PurchaseOrdersScreen, { POCreationScreen } from './screens/PurchaseOrdersScreen';
 import MerchantsScreen from './screens/MerchantsScreen';
 import AdminScreen from './screens/AdminScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import {
   usePlanPulseStore,
   selectMode,
@@ -177,6 +178,8 @@ const MerchantsRoute: React.FC = () => <MerchantsScreen />;
 
 const AdminRoute: React.FC = () => <AdminScreen />;
 
+const SettingsRoute: React.FC = () => <SettingsScreen />;
+
 const App: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
@@ -226,6 +229,7 @@ const App: React.FC = () => {
         <Route path="purchase-orders/new/:quoteId" element={<POCreationRoute />} />
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
+        <Route path="settings" element={<SettingsRoute />} />
       </Route>
       <Route path="/budgetpulse" element={<SurfaceLayout surface={Mode.BudgetPulse} saveStatus={saveStatus} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
@@ -237,6 +241,7 @@ const App: React.FC = () => {
         <Route path="purchase-orders/new/:quoteId" element={<POCreationRoute />} />
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
+        <Route path="settings" element={<SettingsRoute />} />
       </Route>
       <Route path="*" element={<Navigate to="/pricepulse/dashboard" replace />} />
     </Routes>

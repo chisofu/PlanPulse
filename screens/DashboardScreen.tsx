@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from '../vendor/react-router-dom';
-import { Mode, ShoppingList } from '../types';
+import { Mode, ShoppingList, MerchantStatus } from '../types';
 import { DocumentDuplicateIcon, PlusIcon, CheckCircleIcon } from '../components/Icons';
 import { themeTokens } from '../styles/tokens';
 import {
@@ -8,6 +8,7 @@ import {
   selectListSortOrder,
 } from '../store/planPulseStore';
 import { getListStatus } from '../utils/search';
+import { MOCK_MERCHANTS } from '../constants';
 
 interface DashboardScreenProps {
   mode: Mode;
@@ -89,6 +90,35 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
     overdue: 'bg-rose-100 text-rose-700',
   };
 
+  const merchantStatusDescriptions: Record<MerchantStatus, string> = {
+    'Up-to-date': 'Recent price lists and compliance on file.',
+    Due: 'Reminders scheduled within the next 14 days.',
+    Stale: 'Price data ageing beyond acceptable windows.',
+    Suspended: 'Requires admin intervention before trading.',
+  };
+
+  const merchantStatusStyles: Record<MerchantStatus, string> = {
+    'Up-to-date': 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    Due: 'border-amber-200 bg-amber-50 text-amber-700',
+    Stale: 'border-orange-200 bg-orange-50 text-orange-700',
+    Suspended: 'border-rose-200 bg-rose-50 text-rose-700',
+  };
+
+  const merchantStatusSummary = useMemo(() => {
+    const summary: Record<MerchantStatus, number> = {
+      'Up-to-date': 0,
+      Due: 0,
+      Stale: 0,
+      Suspended: 0,
+    };
+    MOCK_MERCHANTS.forEach((merchant) => {
+      if (merchant.status) {
+        summary[merchant.status] += 1;
+      }
+    });
+    return summary;
+  }, []);
+
   return (
     <div>
       <h2 className="text-3xl font-bold text-slate-800 mb-6">
@@ -112,6 +142,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
           </button>
         ))}
       </div>
+
+      <section className="mt-10">
+        <h3 className="text-xl font-semibold text-slate-800 mb-4">Merchant status snapshot</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(Object.entries(merchantStatusSummary) as [MerchantStatus, number][]).map(([status, count]) => (
+            <div
+              key={status}
+              className={`border rounded-xl px-4 py-4 shadow-sm ${merchantStatusStyles[status]}`}
+            >
+              <p className="text-sm font-semibold">{status}</p>
+              <p className="text-2xl font-bold">{count}</p>
+              <p className="text-xs mt-1">{merchantStatusDescriptions[status]}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="mt-10">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-3 md:space-y-0">
