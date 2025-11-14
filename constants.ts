@@ -11,9 +11,7 @@ import {
   PriceListUpload,
   QuoteAttachment,
   QuoteTimelineEntry,
-  TeamMember,
-  Role,
-  ActivityEntry,
+  POTimelineEntry,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -683,6 +681,19 @@ const timelineEntry = (
   description,
 });
 
+const poTimelineEntry = (
+  label: string,
+  timestamp: string,
+  status?: POStatus,
+  description?: string,
+): POTimelineEntry => ({
+  id: uuidv4(),
+  label,
+  timestamp,
+  status,
+  description,
+});
+
 export const MOCK_QUOTES: Quote[] = [
   {
     id: 'quote_01',
@@ -752,16 +763,50 @@ export const MOCK_QUOTES: Quote[] = [
 ];
 
 export const MOCK_POS: PurchaseOrder[] = [
-    {
-        id: 'po_01',
-        reference: 'PO-2023-001',
-        quoteReference: 'Q-2023-001',
-        buyer: 'Our Company Inc.',
-        seller: MOCK_MERCHANTS[2],
-        status: POStatus.Fulfilled,
-        issuedAt: '2023-09-22T11:00:00Z',
-        total: MOCK_QUOTES[0].items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0),
-    }
+  {
+    id: 'po_01',
+    reference: 'PO-2023-001',
+    quoteReference: 'Q-2023-001',
+    buyer: MOCK_QUOTES[0].requester,
+    seller: MOCK_MERCHANTS[2],
+    status: POStatus.Fulfilled,
+    issuedAt: '2023-09-22T11:00:00Z',
+    total: MOCK_QUOTES[0].items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    timeline: [
+      poTimelineEntry('PO issued to Corporate Stationers', '2023-09-22T11:00:00Z', POStatus.Issued),
+      poTimelineEntry(
+        'Supplier confirmed delivery window',
+        '2023-09-23T09:30:00Z',
+        undefined,
+        'Delivery scheduled within 5 working days.',
+      ),
+      poTimelineEntry(
+        'Goods delivered and receipted',
+        '2023-09-28T16:45:00Z',
+        POStatus.Fulfilled,
+        'All 18 line items received in full.',
+      ),
+    ],
+  },
+  {
+    id: 'po_02',
+    reference: 'PO-2023-002',
+    quoteReference: 'Q-2023-002',
+    buyer: MOCK_QUOTES[1].requester,
+    seller: MOCK_MERCHANTS[0],
+    status: POStatus.Partial,
+    issuedAt: '2023-10-02T08:15:00Z',
+    total: MOCK_QUOTES[1].items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    timeline: [
+      poTimelineEntry('PO created for site setup', '2023-10-02T08:15:00Z', POStatus.Issued),
+      poTimelineEntry(
+        'First delivery received',
+        '2023-10-07T17:00:00Z',
+        POStatus.Partial,
+        'Awaiting structural steel components.',
+      ),
+    ],
+  },
 ];
 
 
