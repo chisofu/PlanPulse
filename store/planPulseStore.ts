@@ -1,6 +1,22 @@
 import { createStore } from './createStore';
-import { Mode, ShoppingList, BudgetItem, Quote, ChatMessage, QuoteStatus, PurchaseOrder } from '../types';
-import { MOCK_LISTS, MOCK_QUOTES, MOCK_POS, MOCK_TEMPLATES } from '../constants';
+import {
+  Mode,
+  ShoppingList,
+  BudgetItem,
+  Quote,
+  ChatMessage,
+  QuoteStatus,
+  PurchaseOrder,
+  ItemSuggestionMetadata,
+} from '../types';
+import {
+  MOCK_LISTS,
+  MOCK_QUOTES,
+  MOCK_POS,
+  MOCK_TEMPLATES,
+  INITIAL_ITEM_SUGGESTIONS,
+  DEFAULT_ITEM_CATEGORIES,
+} from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 
 export type PlanPulseState = {
@@ -10,6 +26,8 @@ export type PlanPulseState = {
   quotes: Quote[];
   purchaseOrders: PurchaseOrder[];
   templates: typeof MOCK_TEMPLATES;
+  itemSuggestions: ItemSuggestionMetadata[];
+  categoryTaxonomy: string[];
   setMode: (mode: Mode) => void;
   createList: (name?: string) => ShoppingList;
   upsertList: (list: ShoppingList) => void;
@@ -20,6 +38,8 @@ export type PlanPulseState = {
   addQuoteChatMessage: (quoteId: string, sender: ChatMessage['sender'], text: string) => void;
   updateQuoteStatus: (quoteId: string, status: QuoteStatus) => void;
   upsertPurchaseOrder: (purchaseOrder: PurchaseOrder) => void;
+  recordItemSuggestion: (item: Omit<BudgetItem, 'id' | 'flags'>) => void;
+  upsertCategory: (category: string) => void;
 };
 
 export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
@@ -31,6 +51,8 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     quotes: [...MOCK_QUOTES],
     purchaseOrders: [...MOCK_POS],
     templates: [...MOCK_TEMPLATES],
+    itemSuggestions: [...INITIAL_ITEM_SUGGESTIONS],
+    categoryTaxonomy: [...DEFAULT_ITEM_CATEGORIES],
     setMode: (mode: Mode) => set({ mode }),
     createList: (name?: string) => {
       const newList: ShoppingList = {
@@ -116,6 +138,75 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
           : [...state.purchaseOrders, purchaseOrder],
       }));
     },
+    recordItemSuggestion: (item) => {
+      const normalizedDescription = item.description.trim().toLowerCase();
+      const timestamp = new Date().toISOString();
+      set((state) => {
+        const existingIndex = state.itemSuggestions.findIndex(
+          (suggestion) => suggestion.description.toLowerCase() === normalizedDescription
+        );
+
+        const updatedSuggestions = existingIndex >= 0
+          ? state.itemSuggestions.map((suggestion, index) =>
+              index === existingIndex
+                ? {
+                    ...suggestion,
+                    category: item.category || suggestion.category,
+                    unit: item.unit || suggestion.unit,
+                    unitPrice: item.unitPrice || suggestion.unitPrice,
+                    priceSource: item.priceSource || suggestion.priceSource,
+                    quantitySuggestion: item.quantity ?? suggestion.quantitySuggestion,
+                    usageCount: suggestion.usageCount + 1,
+                    lastUsedAt: timestamp,
+                  }
+                : suggestion
+            )
+          : [
+              ...state.itemSuggestions,
+              {
+                description: item.description,
+                category: item.category,
+                unit: item.unit,
+                unitPrice: item.unitPrice,
+                priceSource: item.priceSource,
+                quantitySuggestion: item.quantity,
+                usageCount: 1,
+                lastUsedAt: timestamp,
+                provenance: 'user',
+              },
+            ];
+
+        const hasCategory = state.categoryTaxonomy.some(
+          (existing) => existing.toLowerCase() === item.category.toLowerCase()
+        );
+
+        const categoryTaxonomy = hasCategory
+          ? state.categoryTaxonomy
+          : [...state.categoryTaxonomy, item.category].sort((a, b) => a.localeCompare(b));
+
+        return {
+          itemSuggestions: updatedSuggestions,
+          categoryTaxonomy,
+        };
+      });
+    },
+    upsertCategory: (category) => {
+      const normalized = category.trim();
+      if (!normalized) {
+        return;
+      }
+      set((state) => {
+        const exists = state.categoryTaxonomy.some(
+          (existing) => existing.toLowerCase() === normalized.toLowerCase()
+        );
+        if (exists) {
+          return {};
+        }
+        return {
+          categoryTaxonomy: [...state.categoryTaxonomy, normalized].sort((a, b) => a.localeCompare(b)),
+        };
+      });
+    },
   };
 });
 
@@ -125,3 +216,5 @@ export const selectLists = (state: PlanPulseState) => state.lists;
 export const selectActiveListId = (state: PlanPulseState) => state.activeListId;
 export const selectQuotes = (state: PlanPulseState) => state.quotes;
 export const selectPurchaseOrders = (state: PlanPulseState) => state.purchaseOrders;
+export const selectItemSuggestions = (state: PlanPulseState) => state.itemSuggestions;
+export const selectCategoryTaxonomy = (state: PlanPulseState) => state.categoryTaxonomy;

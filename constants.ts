@@ -10,6 +10,7 @@ import {
   ChatMessage,
   MerchantProfileDetail,
   PriceListUpload,
+  ItemSuggestionMetadata,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -258,7 +259,7 @@ export const MOCK_TEMPLATES: Template[] = [
   },
 ];
 
-export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags' | 'quantity'>[] = [
+export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags'>[] = [
   ...MOCK_TEMPLATES.flatMap((template) =>
     template.variants.flatMap((variant) =>
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
@@ -274,7 +275,28 @@ export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags' | 'quantity'
     acc.push(current);
   }
   return acc;
-}, [] as Omit<BudgetItem, 'id' | 'flags' | 'quantity'>[]);
+}, [] as Omit<BudgetItem, 'id' | 'flags'>[]);
+
+export const DEFAULT_ITEM_CATEGORIES = Array.from(
+  new Set(['Uncategorized', ...MOCK_ITEM_SUGGESTIONS.map((item) => item.category)])
+).sort((a, b) => a.localeCompare(b));
+
+export const DEFAULT_ITEM_UNITS = Array.from(
+  new Set(MOCK_ITEM_SUGGESTIONS.map((item) => item.unit))
+).sort((a, b) => a.localeCompare(b));
+
+export const DEFAULT_PRICE_SOURCES = Object.values(PriceSource);
+
+export const INITIAL_ITEM_SUGGESTIONS: ItemSuggestionMetadata[] = MOCK_ITEM_SUGGESTIONS.map((item) => ({
+  description: item.description,
+  category: item.category,
+  unit: item.unit,
+  unitPrice: item.unitPrice,
+  priceSource: item.priceSource,
+  quantitySuggestion: 'quantity' in item ? Number((item as Partial<BudgetItem>).quantity) || undefined : undefined,
+  usageCount: 0,
+  provenance: 'seed',
+}));
 
 
 export const MOCK_MERCHANTS = [

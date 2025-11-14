@@ -1,7 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Mode, BudgetItem, ShoppingList, PriceSource } from '../types';
-import { usePlanPulseStore, selectLists, selectActiveListId } from '../store/planPulseStore';
-import { MOCK_ITEM_SUGGESTIONS, formatCurrency } from '../constants';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Mode, BudgetItem, ShoppingList, PriceSource, ItemSuggestionMetadata } from '../types';
+import {
+  usePlanPulseStore,
+  selectLists,
+  selectActiveListId,
+  selectItemSuggestions,
+  selectCategoryTaxonomy,
+} from '../store/planPulseStore';
+import { DEFAULT_ITEM_UNITS, DEFAULT_PRICE_SOURCES, formatCurrency } from '../constants';
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,24 +15,57 @@ interface ListBuilderScreenProps {
   mode: Mode;
 }
 
-type ItemSuggestion = Omit<BudgetItem, 'id' | 'flags' | 'quantity'>;
+type SuggestionMatch = ItemSuggestionMetadata & { matchType: 'exact' | 'partial'; matchScore: number };
+
+type QuickAddDraft = Partial<ItemSuggestionMetadata> & { description: string; quantitySuggestion?: number };
 
 const QuickAddItemModal: React.FC<{
-  item: Partial<ItemSuggestion> & { description: string };
+  item: QuickAddDraft;
   onClose: () => void;
   onAdd: (item: BudgetItem) => void;
-}> = ({ item, onClose, onAdd }) => {
+  categoryOptions: string[];
+  unitOptions: string[];
+  priceSourceOptions: PriceSource[];
+  onCreateCategory: (category: string) => void;
+}> = ({ item, onClose, onAdd, categoryOptions, unitOptions, priceSourceOptions, onCreateCategory }) => {
   const [details, setDetails] = useState({
-    quantity: 1,
-    unit: item.unit || 'Each',
-    category: item.category || 'Uncategorized',
+    quantity: item.quantitySuggestion ?? 1,
+    unit: item.unit || unitOptions[0] || 'Each',
+    category: item.category || categoryOptions[0] || 'Uncategorized',
     unitPrice: item.unitPrice || 0,
+    priceSource: item.priceSource || priceSourceOptions[0] || PriceSource.ZPPA,
   });
   const [errors, setErrors] = useState<{ quantity?: string; unitPrice?: string }>({});
+  const [categoryCreated, setCategoryCreated] = useState(false);
+
+  const categoryListId = React.useId();
+  const unitListId = React.useId();
+
+  useEffect(() => {
+    setDetails({
+      quantity: item.quantitySuggestion ?? 1,
+      unit: item.unit || unitOptions[0] || 'Each',
+      category: item.category || categoryOptions[0] || 'Uncategorized',
+      unitPrice: item.unitPrice || 0,
+      priceSource: item.priceSource || priceSourceOptions[0] || PriceSource.ZPPA,
+    });
+    setErrors({});
+    setCategoryCreated(false);
+  }, [item, categoryOptions, unitOptions, priceSourceOptions]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setDetails((prev) => ({ ...prev, [name]: name === 'quantity' || name === 'unitPrice' ? parseFloat(value) || 0 : value }));
+    setDetails((prev) => ({
+      ...prev,
+      [name]: name === 'quantity' || name === 'unitPrice'
+        ? parseFloat(value) || 0
+        : name === 'priceSource'
+        ? (value as PriceSource)
+        : value,
+    }));
+    if (name === 'category') {
+      setCategoryCreated(false);
+    }
   };
 
   const validate = () => {
@@ -41,29 +80,50 @@ const QuickAddItemModal: React.FC<{
     return Object.keys(newErrors).length === 0;
   };
 
+  const normalizedCategory = details.category.trim();
+  const categoryExists = categoryOptions.some(
+    (existing) => existing.toLowerCase() === normalizedCategory.toLowerCase()
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      onAdd({
-        id: uuidv4(),
-        description: item.description,
-        priceSource: item.priceSource || PriceSource.ZPPA,
-        flags: [],
-        ...details,
-      });
+    if (!validate()) {
+      return;
     }
+    if (normalizedCategory && !categoryExists) {
+      onCreateCategory(normalizedCategory);
+    }
+    onAdd({
+      id: uuidv4(),
+      description: item.description,
+      priceSource: details.priceSource,
+      flags: [],
+      quantity: details.quantity,
+      unit: details.unit,
+      category: details.category,
+      unitPrice: details.unitPrice,
+    });
+  };
+
+  const handleCreateCategoryClick = () => {
+    if (!normalizedCategory) return;
+    onCreateCategory(normalizedCategory);
+    setCategoryCreated(true);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-xl font-bold text-slate-800 mb-4">Add Item Details</h3>
-        <p className="text-slate-600 mb-6 font-medium">{item.description}</p>
+        <h3 className="text-xl font-bold text-slate-800 mb-2">Add Item Details</h3>
+        <p className="text-slate-600 mb-4 font-medium">{item.description}</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="quantity" className="block text-sm font-medium text-slate-700">
                 Quantity
+                {item.quantitySuggestion && (
+                  <span className="ml-2 text-xs text-slate-400">Suggested: {item.quantitySuggestion}</span>
+                )}
               </label>
               <input
                 type="number"
@@ -83,10 +143,16 @@ const QuickAddItemModal: React.FC<{
                 type="text"
                 name="unit"
                 id="unit"
+                list={unitListId}
                 value={details.unit}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
+              <datalist id={unitListId}>
+                {unitOptions.map((unit) => (
+                  <option key={unit} value={unit} />
+                ))}
+              </datalist>
             </div>
           </div>
           <div>
@@ -97,25 +163,63 @@ const QuickAddItemModal: React.FC<{
               type="text"
               name="category"
               id="category"
+              list={categoryListId}
               value={details.category}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+            <datalist id={categoryListId}>
+              {categoryOptions.map((category) => (
+                <option key={category} value={category} />
+              ))}
+            </datalist>
+            {!categoryExists && normalizedCategory && (
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleCreateCategoryClick}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                >
+                  Add “{normalizedCategory}” to categories
+                </button>
+                {categoryCreated && <span className="text-[10px] uppercase text-emerald-600">Added</span>}
+              </div>
+            )}
           </div>
-          <div>
-            <label htmlFor="unitPrice" className="block text-sm font-medium text-slate-700">
-              Unit Price (K)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              name="unitPrice"
-              id="unitPrice"
-              value={details.unitPrice}
-              onChange={handleChange}
-              className={`mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${errors.unitPrice ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-            />
-            {errors.unitPrice && <p className="mt-1 text-sm text-red-600">{errors.unitPrice}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="unitPrice" className="block text-sm font-medium text-slate-700">
+                Unit Price (K)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="unitPrice"
+                id="unitPrice"
+                value={details.unitPrice}
+                onChange={handleChange}
+                className={`mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${errors.unitPrice ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {errors.unitPrice && <p className="mt-1 text-sm text-red-600">{errors.unitPrice}</p>}
+            </div>
+            <div>
+              <label htmlFor="priceSource" className="block text-sm font-medium text-slate-700">
+                Price source
+              </label>
+              <select
+                id="priceSource"
+                name="priceSource"
+                value={details.priceSource}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              >
+                {priceSourceOptions.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-lg hover:bg-slate-300">
@@ -274,11 +378,143 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const deleteItemFromList = usePlanPulseStore((state) => state.deleteItemFromList);
   const upsertList = usePlanPulseStore((state) => state.upsertList);
   const createList = usePlanPulseStore((state) => state.createList);
+  const suggestionsCatalog = usePlanPulseStore(selectItemSuggestions);
+  const categoryTaxonomy = usePlanPulseStore(selectCategoryTaxonomy);
+  const recordItemSuggestion = usePlanPulseStore((state) => state.recordItemSuggestion);
+  const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
 
   const [newItemDesc, setNewItemDesc] = useState('');
-  const [suggestions, setSuggestions] = useState<ItemSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionMatch[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [itemForModal, setItemForModal] = useState<ItemSuggestion | null>(null);
+  const [itemForModal, setItemForModal] = useState<QuickAddDraft | null>(null);
+
+  const priceSourceOptions = useMemo(() => [...DEFAULT_PRICE_SOURCES], []);
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([...categoryTaxonomy, ...suggestionsCatalog.map((suggestion) => suggestion.category)])
+      ).sort((a, b) => a.localeCompare(b)),
+    [categoryTaxonomy, suggestionsCatalog]
+  );
+  const unitOptions = useMemo(
+    () =>
+      Array.from(new Set([...DEFAULT_ITEM_UNITS, ...suggestionsCatalog.map((suggestion) => suggestion.unit)])).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [suggestionsCatalog]
+  );
+
+  const parsePriceQuery = useCallback((input: string) => {
+    let cleaned = input;
+    let minPrice: number | undefined;
+    let maxPrice: number | undefined;
+
+    const rangeMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+    if (rangeMatch) {
+      minPrice = parseFloat(rangeMatch[1]);
+      maxPrice = parseFloat(rangeMatch[2]);
+      cleaned = cleaned.replace(rangeMatch[0], ' ');
+    }
+
+    const lteMatch = cleaned.match(/(?:<=|≤)\s*(\d+(?:\.\d+)?)/);
+    if (lteMatch) {
+      maxPrice = parseFloat(lteMatch[1]);
+      cleaned = cleaned.replace(lteMatch[0], ' ');
+    }
+
+    const gteMatch = cleaned.match(/(?:>=|≥)\s*(\d+(?:\.\d+)?)/);
+    if (gteMatch) {
+      minPrice = parseFloat(gteMatch[1]);
+      cleaned = cleaned.replace(gteMatch[0], ' ');
+    }
+
+    if (minPrice === undefined && maxPrice === undefined) {
+      const kwachaMatch = cleaned.match(/k(\d+(?:\.\d+)?)/);
+      if (kwachaMatch) {
+        const value = parseFloat(kwachaMatch[1]);
+        minPrice = value * 0.9;
+        maxPrice = value * 1.1;
+        cleaned = cleaned.replace(kwachaMatch[0], ' ');
+      }
+    }
+
+    if (minPrice === undefined && maxPrice === undefined) {
+      const approxMatch = cleaned.match(/(?:^|\s)(\d+(?:\.\d+)?)(?=\s|$)/);
+      if (approxMatch) {
+        const value = parseFloat(approxMatch[1]);
+        minPrice = value * 0.9;
+        maxPrice = value * 1.1;
+        cleaned = cleaned.replace(approxMatch[0], ' ');
+      }
+    }
+
+    cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+
+    return { cleanedQuery: cleaned, minPrice, maxPrice };
+  }, []);
+
+  const computeSuggestionMatches = useCallback(
+    (rawInput: string) => {
+      const lowered = rawInput.toLowerCase();
+      const { cleanedQuery, minPrice, maxPrice } = parsePriceQuery(lowered);
+      const keywords = cleanedQuery.split(/\s+/).filter(Boolean);
+
+      return suggestionsCatalog
+        .map((suggestion) => {
+          const normalizedDescription = suggestion.description.toLowerCase();
+          const normalizedCategory = suggestion.category.toLowerCase();
+          const normalizedUnit = suggestion.unit.toLowerCase();
+          const fields = [normalizedDescription, normalizedCategory, normalizedUnit];
+          const matchedKeywords = keywords.filter((keyword) =>
+            fields.some((field) => field.includes(keyword))
+          );
+          const textMatch = keywords.length === 0 ? true : matchedKeywords.length > 0;
+          const priceMatch =
+            minPrice === undefined && maxPrice === undefined
+              ? true
+              : suggestion.unitPrice >= (minPrice ?? 0) &&
+                suggestion.unitPrice <= (maxPrice ?? Number.POSITIVE_INFINITY);
+
+          if (!textMatch || !priceMatch) {
+            return null;
+          }
+
+          const isExact = cleanedQuery.length > 0 && normalizedDescription === cleanedQuery;
+          const startsWith = cleanedQuery.length > 0 && normalizedDescription.startsWith(cleanedQuery);
+          const matchScore =
+            (isExact ? 1000 : 0) +
+            (startsWith ? 150 : 0) +
+            matchedKeywords.length * 60 +
+            suggestion.usageCount * 20 +
+            (priceMatch ? 10 : 0);
+
+          return {
+            ...suggestion,
+            matchType: isExact ? 'exact' : 'partial',
+            matchScore,
+          };
+        })
+        .filter((value): value is SuggestionMatch => value !== null)
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 8);
+    },
+    [suggestionsCatalog, parsePriceQuery]
+  );
+
+  const suggestionToDraft = useCallback(
+    (suggestion: SuggestionMatch): QuickAddDraft => ({
+      description: suggestion.description,
+      category: suggestion.category,
+      unit: suggestion.unit,
+      unitPrice: suggestion.unitPrice,
+      priceSource: suggestion.priceSource,
+      quantitySuggestion: suggestion.quantitySuggestion,
+    }),
+    []
+  );
+
+  const suggestionListId = 'quick-add-suggestions';
 
   useEffect(() => {
     if (!lists.length) {
@@ -296,31 +532,82 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const activeList = activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
 
   useEffect(() => {
-    if (newItemDesc.length > 1) {
-      const filtered = MOCK_ITEM_SUGGESTIONS.filter((item) => item.description.toLowerCase().includes(newItemDesc.toLowerCase()));
-      setSuggestions(filtered.slice(0, 5));
-    } else {
+    const trimmed = newItemDesc.trim();
+    if (!trimmed) {
       setSuggestions([]);
+      setHighlightedIndex(-1);
+      return;
     }
-  }, [newItemDesc]);
+    const matches = computeSuggestionMatches(trimmed);
+    setSuggestions(matches);
+    setHighlightedIndex(matches.length ? 0 : -1);
+  }, [newItemDesc, computeSuggestionMatches]);
 
-  const handleOpenModal = (item: Partial<ItemSuggestion> & { description: string }) => {
-    if (!item.description.trim() || !activeList) return;
-    setItemForModal({
-      description: item.description,
-      category: item.category || 'Uncategorized',
-      unit: item.unit || 'Each',
-      unitPrice: item.unitPrice || 0,
-      priceSource: item.priceSource || PriceSource.ZPPA,
-    });
-    setIsModalOpen(true);
-  };
+  const handleOpenModal = useCallback(
+    (draft: QuickAddDraft) => {
+      const description = draft.description.trim();
+      if (!description || !activeList) {
+        return;
+      }
+
+      const normalizedDescription = description.toLowerCase();
+      const catalogMatch = suggestionsCatalog.find(
+        (suggestion) => suggestion.description.toLowerCase() === normalizedDescription
+      );
+      const recentItem =
+        activeList.items
+          .slice()
+          .reverse()
+          .find((existing) => existing.description.toLowerCase() === normalizedDescription) ?? null;
+
+      const quantitySuggestion =
+        draft.quantitySuggestion ??
+        recentItem?.quantity ??
+        catalogMatch?.quantitySuggestion ??
+        1;
+
+      setItemForModal({
+        description,
+        category:
+          draft.category ??
+          recentItem?.category ??
+          catalogMatch?.category ??
+          categoryOptions[0] ??
+          'Uncategorized',
+        unit:
+          draft.unit ??
+          recentItem?.unit ??
+          catalogMatch?.unit ??
+          unitOptions[0] ??
+          'Each',
+        unitPrice:
+          draft.unitPrice ??
+          recentItem?.unitPrice ??
+          catalogMatch?.unitPrice ??
+          0,
+        priceSource:
+          draft.priceSource ??
+          recentItem?.priceSource ??
+          catalogMatch?.priceSource ??
+          priceSourceOptions[0] ??
+          PriceSource.ZPPA,
+        quantitySuggestion,
+      });
+      setSuggestions([]);
+      setIsModalOpen(true);
+      setHighlightedIndex(-1);
+    },
+    [activeList, suggestionsCatalog, categoryOptions, unitOptions, priceSourceOptions]
+  );
 
   const handleConfirmAddItem = (itemToAdd: BudgetItem) => {
     if (!activeList) return;
     addItemToList(activeList.id, itemToAdd);
+    const { id: _id, flags: _flags, ...suggestionPayload } = itemToAdd;
+    recordItemSuggestion(suggestionPayload);
     setNewItemDesc('');
     setSuggestions([]);
+    setHighlightedIndex(-1);
     setIsModalOpen(false);
     setItemForModal(null);
   };
@@ -333,6 +620,32 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const handleDeleteItem = (itemId: string) => {
     if (!activeList) return;
     deleteItemFromList(activeList.id, itemId);
+  };
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      if (!suggestions.length) {
+        return;
+      }
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (event.key === 'ArrowUp') {
+      if (!suggestions.length) {
+        return;
+      }
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+        handleOpenModal(suggestionToDraft(suggestions[highlightedIndex]));
+      } else {
+        handleOpenModal({ description: newItemDesc.trim() });
+      }
+    } else if (event.key === 'Escape') {
+      setSuggestions([]);
+      setHighlightedIndex(-1);
+    }
   };
 
   const total = useMemo(() => {
@@ -352,7 +665,15 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   return (
     <div className="flex flex-col">
       {isModalOpen && itemForModal && (
-        <QuickAddItemModal item={itemForModal} onClose={() => setIsModalOpen(false)} onAdd={handleConfirmAddItem} />
+        <QuickAddItemModal
+          item={itemForModal}
+          onClose={() => setIsModalOpen(false)}
+          onAdd={handleConfirmAddItem}
+          categoryOptions={categoryOptions}
+          unitOptions={unitOptions}
+          priceSourceOptions={priceSourceOptions}
+          onCreateCategory={upsertCategory}
+        />
       )}
       <div className="bg-white border rounded-lg p-4 mb-4">
         <form onSubmit={handleSaveListMeta} className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-3 md:space-y-0">
@@ -393,28 +714,79 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
             type="text"
             value={newItemDesc}
             onChange={(e) => setNewItemDesc(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleOpenModal({ description: newItemDesc })}
+            onKeyDown={handleInputKeyDown}
             placeholder="Add an item..."
-            className="w-full pl-4 pr-12 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-offset-2 focus:ring-pricepulse"
+            aria-autocomplete="list"
+            aria-controls={suggestions.length ? suggestionListId : undefined}
+            aria-expanded={suggestions.length > 0}
+            aria-activedescendant={
+              highlightedIndex >= 0 && suggestions[highlightedIndex]
+                ? `${suggestionListId}-${highlightedIndex}`
+                : undefined
+            }
+            className={`w-full pl-4 pr-12 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-offset-2 ${
+              mode === Mode.PricePulse ? 'focus:ring-pricepulse' : 'focus:ring-budgetpulse'
+            }`}
           />
           <button
-            onClick={() => handleOpenModal({ description: newItemDesc })}
-            className={`absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full text-white ${mode === Mode.PricePulse ? 'bg-pricepulse' : 'bg-budgetpulse'} hover:opacity-90`}
+            type="button"
+            onClick={() => handleOpenModal({ description: newItemDesc.trim() })}
+            className={`absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full text-white ${
+              mode === Mode.PricePulse ? 'bg-pricepulse' : 'bg-budgetpulse'
+            } hover:opacity-90`}
+            aria-label="Add item"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
           {suggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-slate-200">
-              <ul className="py-1">
-                {suggestions.map((suggestion, index) => (
-                  <li
-                    key={`${suggestion.description}-${index}`}
-                    onClick={() => handleOpenModal(suggestion)}
-                    className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 cursor-pointer"
-                  >
-                    {suggestion.description}
-                  </li>
-                ))}
+            <div
+              id={suggestionListId}
+              role="listbox"
+              className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-slate-200"
+            >
+              <ul className="py-1 max-h-72 overflow-y-auto">
+                {suggestions.map((suggestion, index) => {
+                  const isActive = index === highlightedIndex;
+                  return (
+                    <li
+                      key={`${suggestion.description}-${index}`}
+                      id={`${suggestionListId}-${index}`}
+                      role="option"
+                      aria-selected={isActive}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      onClick={() => handleOpenModal(suggestionToDraft(suggestion))}
+                      className={`px-4 py-2 text-sm transition-colors cursor-pointer ${
+                        isActive ? 'bg-indigo-50 text-slate-900' : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{suggestion.description}</span>
+                        <span
+                          className={`text-[10px] font-semibold tracking-wide uppercase ${
+                            suggestion.matchType === 'exact' ? 'text-emerald-600' : 'text-slate-400'
+                          }`}
+                        >
+                          {suggestion.matchType === 'exact' ? 'Exact match' : 'Partial match'}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                        <span>{suggestion.category}</span>
+                        <span>• {suggestion.unit}</span>
+                        <span>• {formatCurrency(suggestion.unitPrice)}</span>
+                        <span>• {suggestion.priceSource}</span>
+                        <span className="uppercase tracking-wide text-[10px] text-slate-400">
+                          Uses {suggestion.usageCount}
+                        </span>
+                      </div>
+                      {suggestion.quantitySuggestion && (
+                        <div className="mt-1 text-[11px] text-slate-400">
+                          Typical qty: {suggestion.quantitySuggestion}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
