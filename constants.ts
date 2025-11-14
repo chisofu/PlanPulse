@@ -357,9 +357,10 @@ export const INITIAL_ITEM_SUGGESTIONS: ItemSuggestionMetadata[] = MOCK_ITEM_SUGG
 
 
 export const MOCK_MERCHANTS = [
-    { id: 'merch_01', name: 'ZBuild Hardware', logoUrl: 'https://picsum.photos/seed/zbuild/40' },
-    { id: 'merch_02', name: 'Kwik-Mart Supplies', logoUrl: 'https://picsum.photos/seed/kwikmart/40' },
-    { id: 'merch_03', name: 'Corporate Stationers Ltd', logoUrl: 'https://picsum.photos/seed/corpstat/40' },
+  { id: 'merch_01', name: 'ZBuild Hardware', logoUrl: 'https://picsum.photos/seed/zbuild/40', status: 'Up-to-date' },
+  { id: 'merch_02', name: 'Kwik-Mart Supplies', logoUrl: 'https://picsum.photos/seed/kwikmart/40', status: 'Due' },
+  { id: 'merch_03', name: 'Corporate Stationers Ltd', logoUrl: 'https://picsum.photos/seed/corpstat/40', status: 'Suspended' },
+  { id: 'merch_04', name: 'Northern Agro Traders', logoUrl: 'https://picsum.photos/seed/northernagro/40', status: 'Stale' },
 ];
 
 export const MOCK_MERCHANT_PROFILES: MerchantProfileDetail[] = [
@@ -367,6 +368,7 @@ export const MOCK_MERCHANT_PROFILES: MerchantProfileDetail[] = [
     id: 'merch_01',
     name: 'ZBuild Hardware',
     logoUrl: 'https://picsum.photos/seed/zbuild/80',
+    status: 'Up-to-date',
     legalName: 'ZBuild Hardware & Supplies Ltd',
     supplyCategory: 'Building Materials',
     location: 'Lusaka, Chelston',
@@ -380,6 +382,7 @@ export const MOCK_MERCHANT_PROFILES: MerchantProfileDetail[] = [
     id: 'merch_02',
     name: 'Kwik-Mart Supplies',
     logoUrl: 'https://picsum.photos/seed/kwikmart/80',
+    status: 'Due',
     legalName: 'Kwik-Mart Supplies Ltd',
     supplyCategory: 'Office & Stationery',
     location: 'Ndola, Town Centre',
@@ -393,6 +396,7 @@ export const MOCK_MERCHANT_PROFILES: MerchantProfileDetail[] = [
     id: 'merch_03',
     name: 'Corporate Stationers Ltd',
     logoUrl: 'https://picsum.photos/seed/corpstat/80',
+    status: 'Suspended',
     legalName: 'Corporate Stationers Limited',
     supplyCategory: 'Stationery',
     location: 'Kitwe, River Road',
@@ -401,6 +405,20 @@ export const MOCK_MERCHANT_PROFILES: MerchantProfileDetail[] = [
     lifecycleStatus: 'Suspended',
     lastPriceUpdate: '2024-10-01T12:00:00Z',
     nextReminderAt: '2024-12-01T08:00:00Z',
+  },
+  {
+    id: 'merch_04',
+    name: 'Northern Agro Traders',
+    logoUrl: 'https://picsum.photos/seed/northernagro/80',
+    status: 'Stale',
+    legalName: 'Northern Agro Traders Cooperative',
+    supplyCategory: 'Agricultural Inputs',
+    location: 'Kasama, Central Market',
+    primaryContact: 'Brighton Chanda',
+    contactEmail: 'brighton@northernagro.co.zm',
+    lifecycleStatus: 'Approved',
+    lastPriceUpdate: '2024-08-12T12:00:00Z',
+    nextReminderAt: '2024-09-15T08:00:00Z',
   },
 ];
 
@@ -457,6 +475,7 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
       ],
     },
   ],
+  merch_04: [],
 };
 
 export const MOCK_TEAM_MEMBERS: TeamMember[] = [
@@ -712,7 +731,7 @@ export const MOCK_QUOTES: Quote[] = [
     reference: 'Q-2023-001',
     listName: 'Office Refresh Q3',
     requester: 'Procurement Dept.',
-    merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
+    merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2], MOCK_MERCHANTS[3]],
     status: QuoteStatus.Finalized,
     submittedAt: '2023-09-18T14:30:00Z',
     items: MOCK_LISTS[0].items.filter((i) => !i.flags.includes('Crossed')),
@@ -754,7 +773,7 @@ export const MOCK_QUOTES: Quote[] = [
     reference: 'Q-2023-002',
     listName: 'New Site Setup',
     requester: 'Procurement Dept.',
-    merchants: [MOCK_MERCHANTS[0]],
+    merchants: [MOCK_MERCHANTS[0], MOCK_MERCHANTS[3]],
     status: QuoteStatus.Submitted,
     submittedAt: '2023-09-20T09:00:00Z',
     items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),

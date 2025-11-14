@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '../vendor/react-router-dom';
+import { Mode, ShoppingList, MerchantStatus } from '../types';
+import { DocumentDuplicateIcon, PlusIcon, CheckCircleIcon } from '../components/Icons';
 import { Mode, Role, ShoppingList } from '../types';
 import {
   DocumentDuplicateIcon,
@@ -19,6 +21,8 @@ import {
   selectListStatusFilter,
   selectListDateRange,
 } from '../store/planPulseStore';
+import { getListStatus } from '../utils/search';
+import { MOCK_MERCHANTS } from '../constants';
 import { getListStatus, matchesDateRange } from '../utils/search';
 
 interface DashboardScreenProps {
@@ -298,6 +302,35 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
     },
   ];
 
+  const merchantStatusDescriptions: Record<MerchantStatus, string> = {
+    'Up-to-date': 'Recent price lists and compliance on file.',
+    Due: 'Reminders scheduled within the next 14 days.',
+    Stale: 'Price data ageing beyond acceptable windows.',
+    Suspended: 'Requires admin intervention before trading.',
+  };
+
+  const merchantStatusStyles: Record<MerchantStatus, string> = {
+    'Up-to-date': 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    Due: 'border-amber-200 bg-amber-50 text-amber-700',
+    Stale: 'border-orange-200 bg-orange-50 text-orange-700',
+    Suspended: 'border-rose-200 bg-rose-50 text-rose-700',
+  };
+
+  const merchantStatusSummary = useMemo(() => {
+    const summary: Record<MerchantStatus, number> = {
+      'Up-to-date': 0,
+      Due: 0,
+      Stale: 0,
+      Suspended: 0,
+    };
+    MOCK_MERCHANTS.forEach((merchant) => {
+      if (merchant.status) {
+        summary[merchant.status] += 1;
+      }
+    });
+    return summary;
+  }, []);
+
   return (
     <div>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -418,6 +451,52 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
         ))}
       </section>
 
+      <section className="mt-10">
+        <h3 className="text-xl font-semibold text-slate-800 mb-4">Merchant status snapshot</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(Object.entries(merchantStatusSummary) as [MerchantStatus, number][]).map(([status, count]) => (
+            <div
+              key={status}
+              className={`border rounded-xl px-4 py-4 shadow-sm ${merchantStatusStyles[status]}`}
+            >
+              <p className="text-sm font-semibold">{status}</p>
+              <p className="text-2xl font-bold">{count}</p>
+              <p className="text-xs mt-1">{merchantStatusDescriptions[status]}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-3 md:space-y-0">
+          <h3 className="text-xl font-semibold text-slate-800">Shopping list overview</h3>
+          <div className="flex items-center space-x-3">
+            <span className="text-sm text-slate-500">Sort by</span>
+            <div className="inline-flex rounded-md shadow-sm border border-slate-200 overflow-hidden" role="group">
+              <button
+                type="button"
+                onClick={() => setListSortOrder('newest')}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  listSortOrder === 'newest'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+                aria-pressed={listSortOrder === 'newest'}
+              >
+                Newest
+              </button>
+              <button
+                type="button"
+                onClick={() => setListSortOrder('oldest')}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border-l border-slate-200 ${
+                  listSortOrder === 'oldest'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+                aria-pressed={listSortOrder === 'oldest'}
+              >
+                Oldest
+              </button>
       <section className="mt-10 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {showDelegationModule && (

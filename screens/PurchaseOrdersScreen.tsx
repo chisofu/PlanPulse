@@ -316,6 +316,16 @@ export const PurchaseOrdersScreen: React.FC = () => {
               <div>
                 <div className="flex items-start justify-between">
                   <div>
+                    <p className="font-semibold text-budgetpulse">{po.reference}</p>
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span>{po.seller.name}</span>
+                      {po.seller.status && <StatusBadge status={po.seller.status} />}
+                    </div>
+                    <p className="text-sm text-slate-400">Issued: {new Date(po.issuedAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800">{formatCurrency(po.total)}</p>
+                    <StatusBadge status={po.status} />
                     <p className="text-sm uppercase text-slate-400">PO Reference</p>
                     <h3 className="text-xl font-bold text-slate-900">{selectedPurchaseOrder.reference}</h3>
                   </div>
@@ -512,6 +522,79 @@ const CreatePurchaseOrderModal: React.FC<CreatePurchaseOrderModalProps> = ({
             <h3 className="text-xl font-bold text-slate-900">Create Purchase Order</h3>
             <p className="text-sm text-slate-500">Select a finalized quote to seed the purchase order details.</p>
           </div>
+          <div className="text-right">
+            <div className="flex items-center gap-2 justify-end">
+              <h3 className="font-semibold text-lg text-slate-700">Seller: {seller.name}</h3>
+              {seller.status && <StatusBadge status={seller.status} />}
+            </div>
+            <p className="text-slate-500">
+              {seller.status === 'Suspended'
+                ? 'Trading paused until compliance is restored.'
+                : 'Reach out for fulfilment details.'}
+            </p>
+          </div>
+        </div>
+        <div className="border-t border-b border-slate-200 py-4">
+          <h4 className="font-semibold text-md text-slate-600 mb-2">Order Summary</h4>
+          <DataTable
+            columns={[
+              { key: 'description', header: 'Description' },
+              {
+                key: 'quantity',
+                header: 'Qty',
+                align: 'right',
+                render: (item) => <span className="text-slate-600">{item.quantity}</span>,
+              },
+              {
+                key: 'unitPrice',
+                header: 'Unit Price',
+                align: 'right',
+                render: (item) => <span>{formatCurrency(item.unitPrice)}</span>,
+              },
+              {
+                key: 'lineTotal',
+                header: 'Line Total',
+                align: 'right',
+                render: (item) => (
+                  <span className="font-medium text-slate-800">
+                    {formatCurrency(item.quantity * item.unitPrice)}
+                  </span>
+                ),
+              },
+            ]}
+            data={quote.items}
+            getRowKey={(item) => item.id}
+          />
+        </div>
+        <div className="text-right">
+          <p className="text-slate-500">Total Amount</p>
+          <p className="text-3xl font-bold text-slate-900">{formatCurrency(total)}</p>
+        </div>
+        <div>
+          <label htmlFor="payment_instructions" className="block text-sm font-medium text-slate-700">
+            Payment Instructions
+          </label>
+          <textarea
+            id="payment_instructions"
+            rows={3}
+            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            defaultValue="Payment upon delivery."
+          />
+        </div>
+        <div>
+          <label htmlFor="delivery_terms" className="block text-sm font-medium text-slate-700">
+            Delivery Terms
+          </label>
+          <textarea
+            id="delivery_terms"
+            rows={3}
+            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            defaultValue="Deliver to main office within 7 working days."
+          />
+        </div>
+        <div className="flex justify-end">
+          <button type="submit" className="px-8 py-3 bg-budgetpulse text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors">
+            Submit Purchase Order
           <button
             onClick={handleClose}
             className="text-2xl font-bold text-slate-400 hover:text-slate-700"

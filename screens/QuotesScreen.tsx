@@ -265,9 +265,17 @@ const QuotesScreen: React.FC<QuotesScreenProps> = ({ onCreatePurchaseOrder }) =>
                         <p className="text-sm text-slate-400">
                           Submitted: {new Date(quote.submittedAt).toLocaleDateString()}
                         </p>
-                        <p className="text-sm text-slate-500">
-                          Merchants: {quote.merchants.map((merchant) => merchant.name).join(', ')}
-                        </p>
+                        <div className="text-sm text-slate-500 flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-600">Merchants:</span>
+                          {quote.merchants.map((merchant) => (
+                            <div key={merchant.id} className="flex items-center gap-2">
+                              <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-semibold rounded-full">
+                                {merchant.name}
+                              </span>
+                              {merchant.status && <StatusBadge status={merchant.status} />}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right space-y-3">
@@ -465,11 +473,14 @@ const QuoteDetailModal: React.FC<QuoteDetailModalProps> = ({
               </div>
               <div className="col-span-2">
                 <h3 className="font-semibold text-slate-700 mb-2">Merchants</h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {quote.merchants.map((merchant) => (
-                    <span key={merchant.id} className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full">
-                      {merchant.name}
-                    </span>
+                    <div key={merchant.id} className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full">
+                        {merchant.name}
+                      </span>
+                      {merchant.status && <StatusBadge status={merchant.status} />}
+                    </div>
                   ))}
                 </div>
               </div>

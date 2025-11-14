@@ -8,7 +8,8 @@ export type RouteKey =
   | 'quotes'
   | 'pos'
   | 'merchants'
-  | 'admin';
+  | 'admin'
+  | 'settings';
 
 export type SurfaceRoute = {
   key: RouteKey;
@@ -25,6 +26,7 @@ export const surfaceRoutes: SurfaceRoute[] = [
   { key: 'pos', path: 'purchase-orders', label: 'Purchase Orders', modeVisibility: [Mode.BudgetPulse] },
   { key: 'merchants', path: 'merchants', label: 'Merchants', modeVisibility: [Mode.PricePulse, Mode.BudgetPulse] },
   { key: 'admin', path: 'admin', label: 'Admin', modeVisibility: [Mode.BudgetPulse] },
+  { key: 'settings', path: 'settings', label: 'Settings', modeVisibility: [Mode.PricePulse, Mode.BudgetPulse] },
 ];
 
 export type RouteConfigEntry = {
