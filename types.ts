@@ -54,8 +54,21 @@ export interface BudgetItem {
 export interface ShoppingList {
   id: string;
   name: string;
+  description?: string;
   items: BudgetItem[];
   createdAt: string;
+  dueDate?: string;
+}
+
+export type SortOrder = 'newest' | 'oldest';
+
+export type ListStatusFilter = 'all' | 'overdue' | 'dueSoon' | 'onTrack';
+
+export type TemplateStatusFilter = 'all' | 'fresh' | 'stale';
+
+export interface DateRangeFilter {
+  from?: string;
+  to?: string;
 }
 
 export type TemplateCategory =
@@ -164,11 +177,28 @@ export interface PriceListUpload {
     issues: ValidationIssue[];
 }
 
+export interface QuoteAttachment {
+    id: string;
+    filename: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    url?: string;
+}
+
+export interface QuoteTimelineEntry {
+    id: string;
+    label: string;
+    timestamp: string;
+    status?: QuoteStatus;
+    description?: string;
+}
+
 export interface ChatMessage {
     id: string;
     sender: 'Procurement' | 'Merchant';
     text: string;
     timestamp: string;
+    attachments?: QuoteAttachment[];
 }
 
 export interface Quote {
@@ -181,6 +211,8 @@ export interface Quote {
     submittedAt: string;
     items: BudgetItem[];
     chatHistory?: ChatMessage[];
+    attachments?: QuoteAttachment[];
+    timeline?: QuoteTimelineEntry[];
 }
 
 export interface PurchaseOrder {

@@ -4,6 +4,8 @@ import { PurchaseOrder, POStatus } from '../types';
 import { usePlanPulseStore, selectPurchaseOrders, selectQuotes } from '../store/planPulseStore';
 import { formatCurrency, MOCK_MERCHANTS } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
+import StatusBadge from '../components/shared/StatusBadge';
+import { DataTable } from '../components/shared/DataTable';
 
 export const PurchaseOrdersScreen: React.FC = () => {
   const purchaseOrders = usePlanPulseStore(selectPurchaseOrders);
@@ -33,9 +35,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-slate-800">{formatCurrency(po.total)}</p>
-                    <span className={`px-2 py-1 text-xs font-semibold text-white rounded-full ${po.status === POStatus.Fulfilled ? 'bg-green-500' : 'bg-amber-500'}`}>
-                      {po.status}
-                    </span>
+                    <StatusBadge status={po.status} />
                   </div>
                 </div>
               </li>
@@ -103,16 +103,35 @@ export const POCreationScreen: React.FC = () => {
         </div>
         <div className="border-t border-b border-slate-200 py-4">
           <h4 className="font-semibold text-md text-slate-600 mb-2">Order Summary</h4>
-          <ul className="divide-y divide-slate-100">
-            {quote.items.map((item) => (
-              <li key={item.id} className="py-2 flex justify-between">
-                <span className="text-slate-700">
-                  {item.description} (x{item.quantity})
-                </span>
-                <span className="font-medium text-slate-800">{formatCurrency(item.quantity * item.unitPrice)}</span>
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            columns={[
+              { key: 'description', header: 'Description' },
+              {
+                key: 'quantity',
+                header: 'Qty',
+                align: 'right',
+                render: (item) => <span className="text-slate-600">{item.quantity}</span>,
+              },
+              {
+                key: 'unitPrice',
+                header: 'Unit Price',
+                align: 'right',
+                render: (item) => <span>{formatCurrency(item.unitPrice)}</span>,
+              },
+              {
+                key: 'lineTotal',
+                header: 'Line Total',
+                align: 'right',
+                render: (item) => (
+                  <span className="font-medium text-slate-800">
+                    {formatCurrency(item.quantity * item.unitPrice)}
+                  </span>
+                ),
+              },
+            ]}
+            data={quote.items}
+            getRowKey={(item) => item.id}
+          />
         </div>
         <div className="text-right">
           <p className="text-slate-500">Total Amount</p>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Routes,
   Route,
@@ -22,6 +22,8 @@ import {
   selectLists,
   selectQuotes,
   selectPurchaseOrders,
+  getPersistableState,
+  persistenceKey,
 } from './store/planPulseStore';
 import { routeConfigs } from './routes/config';
 import { NavigationItem } from './components/layout/NavigationRail';
@@ -56,7 +58,9 @@ const createListFromTemplateVariant = (template: Template, variant: TemplateVari
   })),
 });
 
-const SurfaceLayout: React.FC<{ surface: Mode }> = ({ surface }) => {
+type SaveStatus = 'saving' | 'saved';
+
+const SurfaceLayout: React.FC<{ surface: Mode; saveStatus: SaveStatus }> = ({ surface, saveStatus }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const storeMode = usePlanPulseStore(selectMode);
@@ -97,6 +101,9 @@ const SurfaceLayout: React.FC<{ surface: Mode }> = ({ surface }) => {
     }
   };
 
+  const savingLabel = saveStatus === 'saving' ? 'Saving…' : 'Saved';
+  const savingClass = saveStatus === 'saving' ? 'text-amber-600' : 'text-emerald-600';
+
   return (
     <AppShell
       mode={surface}
@@ -104,6 +111,13 @@ const SurfaceLayout: React.FC<{ surface: Mode }> = ({ surface }) => {
       navigation={navigationItems}
       title="PlanPulse"
       subtitle={`${surface === Mode.PricePulse ? 'PricePulse' : 'BudgetPulse'} • ${activeRoute}`}
+      actions={
+        typeof window !== 'undefined' ? (
+          <span className={`text-sm font-medium ${savingClass}`} role="status" aria-live="polite">
+            {savingLabel}
+          </span>
+        ) : null
+      }
     >
       <Outlet />
     </AppShell>
@@ -164,10 +178,45 @@ const MerchantsRoute: React.FC = () => <MerchantsScreen />;
 const AdminRoute: React.FC = () => <AdminScreen />;
 
 const App: React.FC = () => {
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let saveTimeout: number | undefined;
+
+    const handlePersist = (state: ReturnType<typeof usePlanPulseStore.getState>) => {
+      setSaveStatus('saving');
+      try {
+        window.localStorage.setItem(persistenceKey, JSON.stringify(getPersistableState(state)));
+      } catch (error) {
+        console.warn('Failed to persist PlanPulse state', error);
+      } finally {
+        if (saveTimeout) {
+          window.clearTimeout(saveTimeout);
+        }
+        saveTimeout = window.setTimeout(() => setSaveStatus('saved'), 400);
+      }
+    };
+
+    const persistCurrentState = () => handlePersist(usePlanPulseStore.getState());
+    persistCurrentState();
+    const unsubscribe = usePlanPulseStore.subscribe(persistCurrentState);
+
+    return () => {
+      unsubscribe();
+      if (saveTimeout) {
+        window.clearTimeout(saveTimeout);
+      }
+    };
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/pricepulse/dashboard" replace />} />
-      <Route path="/pricepulse" element={<SurfaceLayout surface={Mode.PricePulse} />}>
+      <Route path="/pricepulse" element={<SurfaceLayout surface={Mode.PricePulse} saveStatus={saveStatus} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardRoute mode={Mode.PricePulse} />} />
         <Route path="templates" element={<TemplatesRoute mode={Mode.PricePulse} />} />
@@ -178,7 +227,7 @@ const App: React.FC = () => {
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
       </Route>
-      <Route path="/budgetpulse" element={<SurfaceLayout surface={Mode.BudgetPulse} />}>
+      <Route path="/budgetpulse" element={<SurfaceLayout surface={Mode.BudgetPulse} saveStatus={saveStatus} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardRoute mode={Mode.BudgetPulse} />} />
         <Route path="templates" element={<TemplatesRoute mode={Mode.BudgetPulse} />} />
