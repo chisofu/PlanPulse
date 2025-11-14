@@ -4,6 +4,7 @@ import { usePlanPulseStore, selectLists, selectActiveListId } from '../store/pla
 import { formatCurrency } from '../constants';
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
+import { fuzzyIncludes, getListStatus, matchesDateRange } from '../utils/search';
 
 interface ListBuilderScreenProps {
   mode: Mode;
@@ -277,6 +278,12 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const lists = usePlanPulseStore(selectLists);
   const activeListId = usePlanPulseStore(selectActiveListId);
   const setActiveListId = usePlanPulseStore((state) => state.setActiveList);
+  const listSearchQuery = usePlanPulseStore(selectListSearchQuery);
+  const setListSearchQuery = usePlanPulseStore((state) => state.setListSearchQuery);
+  const listStatusFilter = usePlanPulseStore(selectListStatusFilter);
+  const setListStatusFilter = usePlanPulseStore((state) => state.setListStatusFilter);
+  const listDateRange = usePlanPulseStore(selectListDateRange);
+  const setListDateRange = usePlanPulseStore((state) => state.setListDateRange);
   const addItemToList = usePlanPulseStore((state) => state.addItemToList);
   const updateItemInList = usePlanPulseStore((state) => state.updateItemInList);
   const deleteItemFromList = usePlanPulseStore((state) => state.deleteItemFromList);
@@ -308,6 +315,38 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   }, [activeListId, lists, setActiveListId]);
 
   const activeList = activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
+
+  const filteredLists = useMemo(() => {
+    return lists.filter((list) => {
+      const matchesQuery =
+        !listSearchQuery ||
+        fuzzyIncludes(listSearchQuery, list.name) ||
+        list.items.some((item) => fuzzyIncludes(listSearchQuery, item.description));
+      if (!matchesQuery) return false;
+      if (listStatusFilter !== 'all' && getListStatus(list) !== listStatusFilter) return false;
+      const comparisonDate = list.dueDate ?? list.createdAt;
+      if (!matchesDateRange(comparisonDate, listDateRange)) return false;
+      return true;
+    });
+  }, [lists, listSearchQuery, listStatusFilter, listDateRange]);
+
+  const sortedFilteredLists = useMemo(
+    () => [...filteredLists].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [filteredLists],
+  );
+
+  const statusStyles: Record<string, string> = {
+    onTrack: 'bg-emerald-100 text-emerald-700',
+    dueSoon: 'bg-amber-100 text-amber-700',
+    overdue: 'bg-rose-100 text-rose-700',
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   useEffect(() => {
     if (activeList) {
@@ -477,6 +516,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
                 <p className="text-sm text-slate-500 mt-1">Hover to rename the list title.</p>
               </div>
             )}
+          </div>
+          <div>
+            <label htmlFor="listDueDate" className="block text-sm font-medium text-slate-700">
+              Due date
+            </label>
+            <input
+              id="listDueDate"
+              name="listDueDate"
+              type="date"
+              defaultValue={activeList?.dueDate ?? ''}
+              className="mt-1 rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Active list</label>

@@ -387,10 +387,32 @@ export const MOCK_LISTS: ShoppingList[] = [
         name: 'Office Refresh Q3',
         description: 'Bulk supplies refresh for the Q3 office readiness initiative.',
         createdAt: '2023-09-15T10:00:00Z',
+        dueDate: '2023-09-30',
         items: [
             { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
             { id: uuidv4(), description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', quantity: 2, unitPrice: 850.00, priceSource: PriceSource.Merchant, flags: [] },
             { id: uuidv4(), description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', quantity: 3, unitPrice: 75.00, priceSource: PriceSource.Merchant, flags: ['Crossed'] },
+        ]
+    },
+    {
+        id: uuidv4(),
+        name: 'Community Clinic Launch',
+        createdAt: '2024-02-01T08:30:00Z',
+        dueDate: '2024-03-15',
+        items: [
+            { id: uuidv4(), description: 'Hospital Beds', category: 'Health', unit: 'Each', quantity: 6, unitPrice: 4200.00, priceSource: PriceSource.ZPPA, flags: [] },
+            { id: uuidv4(), description: 'Medical Consumables Starter Pack', category: 'Health', unit: 'Kit', quantity: 3, unitPrice: 2750.00, priceSource: PriceSource.Merchant, flags: [] }
+        ]
+    },
+    {
+        id: uuidv4(),
+        name: 'Household Groceries January',
+        createdAt: '2024-12-28T07:45:00Z',
+        dueDate: '2025-01-05',
+        items: [
+            { id: uuidv4(), description: 'Maize Meal 25kg', category: 'Groceries', unit: 'Bag', quantity: 2, unitPrice: 175.00, priceSource: PriceSource.Merchant, flags: [] },
+            { id: uuidv4(), description: 'Cooking Oil 5L', category: 'Groceries', unit: 'Bottle', quantity: 1, unitPrice: 185.00, priceSource: PriceSource.Merchant, flags: [] },
+            { id: uuidv4(), description: 'Fresh Produce Assortment', category: 'Groceries', unit: 'Hamper', quantity: 1, unitPrice: 260.00, priceSource: PriceSource.Merchant, flags: [] }
         ]
     }
 ];
