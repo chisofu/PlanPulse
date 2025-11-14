@@ -50,6 +50,9 @@ const createListFromTemplateVariant = (template: Template, variant: TemplateVari
     unitPrice: item.unitPrice,
     priceSource: item.priceSource,
     flags: [],
+    priority: item.priority ?? 'Medium',
+    completed: item.completed ?? false,
+    status: item.status ?? 'Planned',
   })),
 });
 
@@ -128,6 +131,9 @@ const TemplatesRoute: React.FC<{ mode: Mode }> = ({ mode }) => {
         ...item,
         id: uuidv4(),
         flags: [],
+        priority: item.priority ?? 'Medium',
+        completed: item.completed ?? false,
+        status: item.status ?? 'Planned',
       })),
     };
     upsertList(newList);

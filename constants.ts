@@ -258,7 +258,11 @@ export const MOCK_TEMPLATES: Template[] = [
   },
 ];
 
-export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags' | 'quantity'>[] = [
+export const MOCK_ITEM_SUGGESTIONS: (Omit<BudgetItem, 'id' | 'flags' | 'quantity'> & {
+  priority?: BudgetItem['priority'];
+  completed?: boolean;
+  status?: BudgetItem['status'];
+})[] = [
   ...MOCK_TEMPLATES.flatMap((template) =>
     template.variants.flatMap((variant) =>
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
@@ -381,16 +385,52 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
 };
 
 export const MOCK_LISTS: ShoppingList[] = [
-    {
+  {
+    id: uuidv4(),
+    name: 'Office Refresh Q3',
+    createdAt: '2023-09-15T10:00:00Z',
+    items: [
+      {
         id: uuidv4(),
-        name: 'Office Refresh Q3',
-        createdAt: '2023-09-15T10:00:00Z',
-        items: [
-            { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', quantity: 2, unitPrice: 850.00, priceSource: PriceSource.Merchant, flags: [] },
-            { id: uuidv4(), description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', quantity: 3, unitPrice: 75.00, priceSource: PriceSource.Merchant, flags: ['Crossed'] },
-        ]
-    }
+        description: 'A4 Printing Paper',
+        category: 'Stationery',
+        unit: 'Ream',
+        quantity: 10,
+        unitPrice: 110,
+        priceSource: PriceSource.Merchant,
+        flags: [],
+        priority: 'High',
+        completed: false,
+        status: 'Planned',
+      },
+      {
+        id: uuidv4(),
+        description: 'Black Toner Cartridge',
+        category: 'Stationery',
+        unit: 'Each',
+        quantity: 2,
+        unitPrice: 850,
+        priceSource: PriceSource.Merchant,
+        flags: [],
+        priority: 'Medium',
+        completed: false,
+        status: 'In Progress',
+      },
+      {
+        id: uuidv4(),
+        description: 'Whiteboard Markers',
+        category: 'Stationery',
+        unit: 'Pack',
+        quantity: 3,
+        unitPrice: 75,
+        priceSource: PriceSource.Merchant,
+        flags: ['Crossed'],
+        priority: 'Low',
+        completed: true,
+        status: 'Ordered',
+      },
+    ],
+  },
 ];
 
 export const MOCK_QUOTES: Quote[] = [
@@ -417,7 +457,14 @@ export const MOCK_QUOTES: Quote[] = [
         merchants: [MOCK_MERCHANTS[0]],
         status: QuoteStatus.Submitted,
         submittedAt: '2023-09-20T09:00:00Z',
-        items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),
+        items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({
+            ...i,
+            id: uuidv4(),
+            flags: [],
+            priority: i.priority ?? 'Medium',
+            completed: i.completed ?? false,
+            status: i.status ?? 'Planned',
+        })),
     }
 ];
 

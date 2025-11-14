@@ -33,6 +33,10 @@ export enum POStatus {
     Delayed = 'Delayed'
 }
 
+export type ItemPriority = 'High' | 'Medium' | 'Low';
+
+export type ItemStatus = 'Planned' | 'In Progress' | 'Ordered' | 'Received';
+
 export interface BudgetItem {
   id: string;
   description: string;
@@ -42,6 +46,9 @@ export interface BudgetItem {
   unitPrice: number;
   priceSource: PriceSource;
   flags: ('Crossed' | 'Excluded')[];
+  priority: ItemPriority;
+  completed: boolean;
+  status: ItemStatus;
 }
 
 export interface ShoppingList {
@@ -61,8 +68,12 @@ export type TemplateCategory =
   | 'Community'
   | 'Custom';
 
-export interface TemplateItemDefinition extends Omit<BudgetItem, 'id' | 'flags'> {
+export interface TemplateItemDefinition
+  extends Omit<BudgetItem, 'id' | 'flags' | 'priority' | 'completed' | 'status'> {
   benchmarkSource: PriceSource;
+  priority?: ItemPriority;
+  completed?: boolean;
+  status?: ItemStatus;
 }
 
 export interface TemplateVariant {
