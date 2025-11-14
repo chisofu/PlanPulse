@@ -2,12 +2,13 @@ import React, { useMemo } from 'react';
 import { useNavigate } from '../vendor/react-router-dom';
 import { Mode, ShoppingList } from '../types';
 import { DocumentDuplicateIcon, PlusIcon, CheckCircleIcon } from '../components/Icons';
-import { themeTokens } from '../styles/tokens';
 import {
   usePlanPulseStore,
   selectListSortOrder,
 } from '../store/planPulseStore';
 import { getListStatus } from '../utils/search';
+import { getAccentTokensForMode } from '../styles/theme';
+import { useThemeAppearance } from '../styles/themeContext';
 
 interface DashboardScreenProps {
   mode: Mode;
@@ -21,7 +22,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
   const listSortOrder = usePlanPulseStore(selectListSortOrder);
   const setListSortOrder = usePlanPulseStore((state) => state.setListSortOrder);
   const isPricePulse = mode === Mode.PricePulse;
-  const modeToken = themeTokens.modeStyles[isPricePulse ? 'pricepulse' : 'budgetpulse'];
+  const appearance = useThemeAppearance();
+  const accentTokens = getAccentTokensForMode(mode, appearance);
 
   const goTo = (path: string) => navigate(path);
 
@@ -100,9 +102,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
             key={card.title}
             onClick={card.action}
             className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all flex items-center space-x-4 w-full text-left border-t-4"
-            style={{ borderColor: modeToken.accentBg }}
+            style={{ borderColor: accentTokens.accentColorBg }}
           >
-            <div className="p-3 rounded-full" style={{ backgroundColor: modeToken.accentSurface }}>
+            <div className="p-3 rounded-full" style={{ backgroundColor: accentTokens.accentSurface }}>
               <div className={isPricePulse ? 'text-pricepulse' : 'text-budgetpulse'}>{card.icon}</div>
             </div>
             <div>

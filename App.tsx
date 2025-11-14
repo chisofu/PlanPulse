@@ -37,7 +37,14 @@ import {
   PlusIcon,
   TrashIcon,
 } from './components/Icons';
-import { getModeTheme } from './components/layout/ModeTheme';
+import {
+  ThemeAppearance,
+  resolveInitialAppearance,
+  setDocumentThemeClass,
+  storeAppearancePreference,
+  syncAccentCssVariables,
+} from './styles/theme';
+import { ThemeAppearanceProvider } from './styles/themeContext';
 
 const createListFromTemplateVariant = (template: Template, variant: TemplateVariant): ShoppingList => ({
   id: uuidv4(),
@@ -60,7 +67,12 @@ const createListFromTemplateVariant = (template: Template, variant: TemplateVari
 
 type SaveStatus = 'saving' | 'saved';
 
-const SurfaceLayout: React.FC<{ surface: Mode; saveStatus: SaveStatus }> = ({ surface, saveStatus }) => {
+const SurfaceLayout: React.FC<{
+  surface: Mode;
+  saveStatus: SaveStatus;
+  appearance: ThemeAppearance;
+  onAppearanceToggle: () => void;
+}> = ({ surface, saveStatus, appearance, onAppearanceToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const storeMode = usePlanPulseStore(selectMode);
@@ -108,6 +120,8 @@ const SurfaceLayout: React.FC<{ surface: Mode; saveStatus: SaveStatus }> = ({ su
     <AppShell
       mode={surface}
       onModeChange={handleModeChange}
+      appearance={appearance}
+      onThemeToggle={onAppearanceToggle}
       navigation={navigationItems}
       title="PlanPulse"
       subtitle={`${surface === Mode.PricePulse ? 'PricePulse' : 'BudgetPulse'} • ${activeRoute}`}
@@ -179,6 +193,25 @@ const AdminRoute: React.FC = () => <AdminScreen />;
 
 const App: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [appearance, setAppearance] = useState<ThemeAppearance>(() => {
+    const initial = resolveInitialAppearance();
+    if (typeof document !== 'undefined') {
+      const className = initial === 'dark' ? 'theme-dark' : 'theme-light';
+      document.documentElement.classList.add(className);
+      document.body.classList.add(className);
+    }
+    return initial;
+  });
+  const activeMode = usePlanPulseStore(selectMode);
+
+  useEffect(() => {
+    setDocumentThemeClass(appearance);
+    storeAppearancePreference(appearance);
+  }, [appearance]);
+
+  useEffect(() => {
+    syncAccentCssVariables(activeMode, appearance);
+  }, [activeMode, appearance]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -213,10 +246,25 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const toggleAppearance = () => {
+    setAppearance((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/pricepulse/dashboard" replace />} />
-      <Route path="/pricepulse" element={<SurfaceLayout surface={Mode.PricePulse} saveStatus={saveStatus} />}>
+    <ThemeAppearanceProvider value={appearance}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/pricepulse/dashboard" replace />} />
+        <Route
+          path="/pricepulse"
+          element={
+            <SurfaceLayout
+              surface={Mode.PricePulse}
+              saveStatus={saveStatus}
+              appearance={appearance}
+              onAppearanceToggle={toggleAppearance}
+            />
+          }
+        >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardRoute mode={Mode.PricePulse} />} />
         <Route path="templates" element={<TemplatesRoute mode={Mode.PricePulse} />} />
@@ -227,7 +275,17 @@ const App: React.FC = () => {
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
       </Route>
-      <Route path="/budgetpulse" element={<SurfaceLayout surface={Mode.BudgetPulse} saveStatus={saveStatus} />}>
+        <Route
+          path="/budgetpulse"
+          element={
+            <SurfaceLayout
+              surface={Mode.BudgetPulse}
+              saveStatus={saveStatus}
+              appearance={appearance}
+              onAppearanceToggle={toggleAppearance}
+            />
+          }
+        >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardRoute mode={Mode.BudgetPulse} />} />
         <Route path="templates" element={<TemplatesRoute mode={Mode.BudgetPulse} />} />
@@ -238,8 +296,9 @@ const App: React.FC = () => {
         <Route path="merchants" element={<MerchantsRoute />} />
         <Route path="admin" element={<AdminRoute />} />
       </Route>
-      <Route path="*" element={<Navigate to="/pricepulse/dashboard" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/pricepulse/dashboard" replace />} />
+      </Routes>
+    </ThemeAppearanceProvider>
   );
 };
 
