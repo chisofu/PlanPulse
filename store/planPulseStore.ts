@@ -36,6 +36,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       const newList: ShoppingList = {
         id: uuidv4(),
         name: name ?? 'New List',
+        description: '',
         createdAt: new Date().toISOString(),
         items: [],
       };

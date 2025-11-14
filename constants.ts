@@ -384,6 +384,7 @@ export const MOCK_LISTS: ShoppingList[] = [
     {
         id: uuidv4(),
         name: 'Office Refresh Q3',
+        description: 'Bulk supplies refresh for the Q3 office readiness initiative.',
         createdAt: '2023-09-15T10:00:00Z',
         items: [
             { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
