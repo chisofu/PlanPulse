@@ -3,6 +3,7 @@ import { Mode } from '../../types';
 import { useZPPAImport } from '../../hooks/useZPPAImport';
 import { getModeTheme } from '../layout/ModeTheme';
 import { ValidationIssue } from '../../types';
+import { CSVValidationPanel } from './CSVValidationPanel';
 
 const renderSeverityBadge = (issue: ValidationIssue) => {
   const base = 'px-2 py-1 rounded-full text-xs font-semibold';
@@ -51,7 +52,7 @@ export const ZPPAImportPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
         </div>
       </div>
 
-      <div className="lg:col-span-2">
+      <div className="lg:col-span-2 space-y-6">
         {activeBatch ? (
           <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -140,6 +141,7 @@ export const ZPPAImportPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
             <p className="font-semibold text-slate-600">Select a batch to see validation details.</p>
           </div>
         )}
+        <CSVValidationPanel mode={mode} />
       </div>
     </div>
   );
