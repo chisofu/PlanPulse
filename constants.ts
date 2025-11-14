@@ -269,11 +269,51 @@ export const MOCK_ITEM_SUGGESTIONS: (Omit<BudgetItem, 'id' | 'flags' | 'quantity
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
     )
   ),
-  { description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', unitPrice: 110, priceSource: PriceSource.Merchant },
-  { description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', unitPrice: 850, priceSource: PriceSource.Merchant },
-  { description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', unitPrice: 75, priceSource: PriceSource.Merchant },
-  { description: 'Laptop Charger', category: 'Electronics', unit: 'Each', unitPrice: 450, priceSource: PriceSource.Merchant },
-  { description: 'Safety Boots', category: 'Apparel', unit: 'Pair', unitPrice: 600, priceSource: PriceSource.Merchant },
+  {
+    description: 'A4 Printing Paper',
+    category: 'Stationery',
+    subcategory: 'Paper',
+    unit: 'Ream',
+    unitPrice: 110,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-PRINT-001',
+  },
+  {
+    description: 'Black Toner Cartridge',
+    category: 'Stationery',
+    subcategory: 'Printing Supplies',
+    unit: 'Each',
+    unitPrice: 850,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-TONER-009',
+  },
+  {
+    description: 'Whiteboard Markers',
+    category: 'Stationery',
+    subcategory: 'Meeting Room',
+    unit: 'Pack',
+    unitPrice: 75,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-MARK-004',
+  },
+  {
+    description: 'Laptop Charger',
+    category: 'Electronics',
+    subcategory: 'Accessories',
+    unit: 'Each',
+    unitPrice: 450,
+    priceSource: PriceSource.Merchant,
+    sku: 'EL-LAP-002',
+  },
+  {
+    description: 'Safety Boots',
+    category: 'Apparel',
+    subcategory: 'Protective Gear',
+    unit: 'Pair',
+    unitPrice: 600,
+    priceSource: PriceSource.Merchant,
+    sku: 'AP-BOOT-006',
+  },
 ].reduce((acc, current) => {
   if (!acc.find((item) => item.description === current.description)) {
     acc.push(current);

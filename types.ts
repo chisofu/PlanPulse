@@ -41,6 +41,7 @@ export interface BudgetItem {
   id: string;
   description: string;
   category: string;
+  subcategory?: string;
   unit: string;
   quantity: number;
   unitPrice: number;

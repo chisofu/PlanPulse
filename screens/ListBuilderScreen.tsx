@@ -259,8 +259,8 @@ const BudgetItemRow: React.FC<{
           </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
   const completed = item.completed || item.flags.includes('Crossed');
 
@@ -318,6 +318,29 @@ const BudgetItemRow: React.FC<{
           </button>
         </div>
       </div>
+    </div>
+  );
+
+  const containerClasses = `group border-b border-slate-200 ${
+    isEditing
+      ? 'bg-indigo-50/80 ring-2 ring-indigo-200'
+      : isExcluded
+      ? 'bg-amber-50/60'
+      : isCrossed
+      ? 'bg-slate-100'
+      : 'bg-white hover:bg-slate-50'
+  }`;
+
+  return (
+    <div ref={rowRef} className={`p-3 transition-all ${containerClasses}`}>
+      {isEditing ? editingContent : viewContent}
+      {showHistory && (
+        <PriceHistoryModal
+          entries={item.priceHistory || []}
+          onClose={() => setShowHistory(false)}
+          itemDescription={item.description}
+        />
+      )}
     </div>
   );
 };
