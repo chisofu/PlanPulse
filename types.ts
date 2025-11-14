@@ -33,11 +33,9 @@ export enum POStatus {
     Delayed = 'Delayed'
 }
 
-export interface PriceHistoryEntry {
-  date: string;
-  price: number;
-  source: PriceSource;
-}
+export type ItemPriority = 'High' | 'Medium' | 'Low';
+
+export type ItemStatus = 'Planned' | 'In Progress' | 'Ordered' | 'Received';
 
 export interface BudgetItem {
   id: string;
@@ -49,17 +47,29 @@ export interface BudgetItem {
   unitPrice: number;
   priceSource: PriceSource;
   flags: ('Crossed' | 'Excluded')[];
-  imageUrl?: string;
-  privateNotes?: string;
-  sku?: string;
-  priceHistory?: PriceHistoryEntry[];
+  priority: ItemPriority;
+  completed: boolean;
+  status: ItemStatus;
 }
 
 export interface ShoppingList {
   id: string;
   name: string;
+  description?: string;
   items: BudgetItem[];
   createdAt: string;
+  dueDate?: string;
+}
+
+export type SortOrder = 'newest' | 'oldest';
+
+export type ListStatusFilter = 'all' | 'overdue' | 'dueSoon' | 'onTrack';
+
+export type TemplateStatusFilter = 'all' | 'fresh' | 'stale';
+
+export interface DateRangeFilter {
+  from?: string;
+  to?: string;
 }
 
 export type TemplateCategory =
@@ -72,8 +82,12 @@ export type TemplateCategory =
   | 'Community'
   | 'Custom';
 
-export interface TemplateItemDefinition extends Omit<BudgetItem, 'id' | 'flags'> {
+export interface TemplateItemDefinition
+  extends Omit<BudgetItem, 'id' | 'flags' | 'priority' | 'completed' | 'status'> {
   benchmarkSource: PriceSource;
+  priority?: ItemPriority;
+  completed?: boolean;
+  status?: ItemStatus;
 }
 
 export interface TemplateVariant {
@@ -164,11 +178,28 @@ export interface PriceListUpload {
     issues: ValidationIssue[];
 }
 
+export interface QuoteAttachment {
+    id: string;
+    filename: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    url?: string;
+}
+
+export interface QuoteTimelineEntry {
+    id: string;
+    label: string;
+    timestamp: string;
+    status?: QuoteStatus;
+    description?: string;
+}
+
 export interface ChatMessage {
     id: string;
     sender: 'Procurement' | 'Merchant';
     text: string;
     timestamp: string;
+    attachments?: QuoteAttachment[];
 }
 
 export interface Quote {
@@ -181,6 +212,8 @@ export interface Quote {
     submittedAt: string;
     items: BudgetItem[];
     chatHistory?: ChatMessage[];
+    attachments?: QuoteAttachment[];
+    timeline?: QuoteTimelineEntry[];
 }
 
 export interface PurchaseOrder {
