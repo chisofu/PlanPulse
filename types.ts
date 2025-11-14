@@ -47,6 +47,7 @@ export interface BudgetItem {
 export interface ShoppingList {
   id: string;
   name: string;
+  description?: string;
   items: BudgetItem[];
   createdAt: string;
 }
