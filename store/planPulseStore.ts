@@ -7,10 +7,8 @@ import {
   ChatMessage,
   QuoteStatus,
   PurchaseOrder,
-  SortOrder,
-  ListStatusFilter,
-  TemplateStatusFilter,
-  DateRangeFilter,
+  QuoteAttachment,
+  QuoteTimelineEntry,
 } from '../types';
 import { MOCK_LISTS, MOCK_QUOTES, MOCK_POS, MOCK_TEMPLATES } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -38,15 +36,16 @@ export type PlanPulseState = {
   updateItemInList: (listId: string, item: BudgetItem) => void;
   deleteItemFromList: (listId: string, itemId: string) => void;
   setActiveList: (listId?: string) => void;
-  setListSearchQuery: (value: string) => void;
-  setTemplateSearchQuery: (value: string) => void;
-  setListStatusFilter: (value: ListStatusFilter) => void;
-  setTemplateStatusFilter: (value: TemplateStatusFilter) => void;
-  setListDateRange: (range: DateRangeFilter) => void;
-  setTemplateDateRange: (range: DateRangeFilter) => void;
-  setListSortOrder: (order: SortOrder) => void;
-  addQuoteChatMessage: (quoteId: string, sender: ChatMessage['sender'], text: string) => void;
-  updateQuoteStatus: (quoteId: string, status: QuoteStatus) => void;
+  addQuoteChatMessage: (
+    quoteId: string,
+    sender: ChatMessage['sender'],
+    text: string,
+    attachments?: QuoteAttachment[],
+  ) => void;
+  addQuoteAttachment: (quoteId: string, attachment: QuoteAttachment) => void;
+  updateQuoteItems: (quoteId: string, items: BudgetItem[]) => void;
+  updateQuoteStatus: (quoteId: string, status: QuoteStatus, note?: string) => void;
+  requestNewQuoteFromExisting: (quoteId: string) => Quote | undefined;
   upsertPurchaseOrder: (purchaseOrder: PurchaseOrder) => void;
 };
 
@@ -114,6 +113,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       const newList: ShoppingList = {
         id: uuidv4(),
         name: name ?? 'New List',
+        description: '',
         createdAt: new Date().toISOString(),
         dueDate,
         items: [],
@@ -161,14 +161,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       }));
     },
     setActiveList: (listId?: string) => set({ activeListId: listId }),
-    setListSearchQuery: (value) => set({ listSearchQuery: value }),
-    setTemplateSearchQuery: (value) => set({ templateSearchQuery: value }),
-    setListStatusFilter: (value) => set({ listStatusFilter: value }),
-    setTemplateStatusFilter: (value) => set({ templateStatusFilter: value }),
-    setListDateRange: (range) => set({ listDateRange: range }),
-    setTemplateDateRange: (range) => set({ templateDateRange: range }),
-    setListSortOrder: (order) => set({ listSortOrder: order }),
-    addQuoteChatMessage: (quoteId, sender, text) => {
+    addQuoteChatMessage: (quoteId, sender, text, attachments) => {
       set((state) => ({
         quotes: state.quotes.map((quote) =>
           quote.id === quoteId
@@ -181,6 +174,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
                     sender,
                     text,
                     timestamp: new Date().toISOString(),
+                    attachments: attachments?.map((attachment) => ({ ...attachment, id: attachment.id ?? uuidv4() })),
                   },
                 ],
               }
@@ -188,12 +182,89 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
         ),
       }));
     },
-    updateQuoteStatus: (quoteId, status) => {
+    addQuoteAttachment: (quoteId, attachment) => {
       set((state) => ({
         quotes: state.quotes.map((quote) =>
-          quote.id === quoteId ? { ...quote, status } : quote
+          quote.id === quoteId
+            ? {
+                ...quote,
+                attachments: [
+                  ...(quote.attachments ?? []),
+                  {
+                    ...attachment,
+                    id: attachment.id ?? uuidv4(),
+                  },
+                ],
+              }
+            : quote
         ),
       }));
+    },
+    updateQuoteItems: (quoteId, items) => {
+      set((state) => ({
+        quotes: state.quotes.map((quote) =>
+          quote.id === quoteId
+            ? {
+                ...quote,
+                items,
+              }
+            : quote
+        ),
+      }));
+    },
+    updateQuoteStatus: (quoteId, status, note) => {
+      set((state) => ({
+        quotes: state.quotes.map((quote) => {
+          if (quote.id !== quoteId) return quote;
+          const timelineEntry: QuoteTimelineEntry = {
+            id: uuidv4(),
+            label: `Status changed to ${status}`,
+            status,
+            timestamp: new Date().toISOString(),
+            description: note,
+          };
+          return {
+            ...quote,
+            status,
+            timeline: [...(quote.timeline ?? []), timelineEntry],
+          };
+        }),
+      }));
+    },
+    requestNewQuoteFromExisting: (quoteId) => {
+      const quoteToClone = get().quotes.find((quote) => quote.id === quoteId);
+      if (!quoteToClone) return undefined;
+      const clonedItems = quoteToClone.items.map((item) => ({
+        ...item,
+        id: uuidv4(),
+      }));
+      const newQuote: Quote = {
+        ...quoteToClone,
+        id: uuidv4(),
+        reference: `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, '0')}`,
+        status: QuoteStatus.Draft,
+        submittedAt: new Date().toISOString(),
+        items: clonedItems,
+        chatHistory: [],
+        attachments: [],
+        timeline: [
+          {
+            id: uuidv4(),
+            label: 'Quote request created',
+            timestamp: new Date().toISOString(),
+            status: QuoteStatus.Draft,
+            description: `Cloned from ${quoteToClone.reference}`,
+          },
+        ],
+      };
+
+      set((state) => ({
+        quotes: [newQuote, ...state.quotes],
+      }));
+
+      return newQuote;
     },
     upsertPurchaseOrder: (purchaseOrder) => {
       set((state) => ({
