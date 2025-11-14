@@ -1,9 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Mode, BudgetItem, ShoppingList, PriceSource } from '../types';
-import { usePlanPulseStore, selectLists, selectActiveListId } from '../store/planPulseStore';
+import { Mode, BudgetItem, ShoppingList, PriceSource, ListStatusFilter } from '../types';
+import {
+  usePlanPulseStore,
+  selectLists,
+  selectActiveListId,
+  selectListSearchQuery,
+  selectListStatusFilter,
+  selectListDateRange,
+} from '../store/planPulseStore';
 import { MOCK_ITEM_SUGGESTIONS, formatCurrency } from '../constants';
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
+import { fuzzyIncludes, getListStatus, matchesDateRange } from '../utils/search';
 
 interface ListBuilderScreenProps {
   mode: Mode;
@@ -269,6 +277,12 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const lists = usePlanPulseStore(selectLists);
   const activeListId = usePlanPulseStore(selectActiveListId);
   const setActiveListId = usePlanPulseStore((state) => state.setActiveList);
+  const listSearchQuery = usePlanPulseStore(selectListSearchQuery);
+  const setListSearchQuery = usePlanPulseStore((state) => state.setListSearchQuery);
+  const listStatusFilter = usePlanPulseStore(selectListStatusFilter);
+  const setListStatusFilter = usePlanPulseStore((state) => state.setListStatusFilter);
+  const listDateRange = usePlanPulseStore(selectListDateRange);
+  const setListDateRange = usePlanPulseStore((state) => state.setListDateRange);
   const addItemToList = usePlanPulseStore((state) => state.addItemToList);
   const updateItemInList = usePlanPulseStore((state) => state.updateItemInList);
   const deleteItemFromList = usePlanPulseStore((state) => state.deleteItemFromList);
@@ -294,6 +308,38 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   }, [activeListId, lists, setActiveListId]);
 
   const activeList = activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
+
+  const filteredLists = useMemo(() => {
+    return lists.filter((list) => {
+      const matchesQuery =
+        !listSearchQuery ||
+        fuzzyIncludes(listSearchQuery, list.name) ||
+        list.items.some((item) => fuzzyIncludes(listSearchQuery, item.description));
+      if (!matchesQuery) return false;
+      if (listStatusFilter !== 'all' && getListStatus(list) !== listStatusFilter) return false;
+      const comparisonDate = list.dueDate ?? list.createdAt;
+      if (!matchesDateRange(comparisonDate, listDateRange)) return false;
+      return true;
+    });
+  }, [lists, listSearchQuery, listStatusFilter, listDateRange]);
+
+  const sortedFilteredLists = useMemo(
+    () => [...filteredLists].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [filteredLists],
+  );
+
+  const statusStyles: Record<string, string> = {
+    onTrack: 'bg-emerald-100 text-emerald-700',
+    dueSoon: 'bg-amber-100 text-amber-700',
+    overdue: 'bg-rose-100 text-rose-700',
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   useEffect(() => {
     if (newItemDesc.length > 1) {
@@ -345,7 +391,8 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     if (!activeList) return;
     const formData = new FormData(e.currentTarget);
     const name = String(formData.get('listName') || activeList.name);
-    const updatedList: ShoppingList = { ...activeList, name };
+    const dueDateValue = String(formData.get('listDueDate') || activeList.dueDate || '').trim();
+    const updatedList: ShoppingList = { ...activeList, name, dueDate: dueDateValue || undefined };
     upsertList(updatedList);
   };
 
@@ -354,6 +401,126 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       {isModalOpen && itemForModal && (
         <QuickAddItemModal item={itemForModal} onClose={() => setIsModalOpen(false)} onAdd={handleConfirmAddItem} />
       )}
+      <div className="bg-white border rounded-lg p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <label htmlFor="listSearch" className="block text-sm font-medium text-slate-700">
+              Search lists
+            </label>
+            <input
+              id="listSearch"
+              type="text"
+              value={listSearchQuery}
+              onChange={(event) => setListSearchQuery(event.target.value)}
+              placeholder="Search by name or item"
+              className="mt-1 w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="listStatus" className="block text-sm font-medium text-slate-700">
+              Due status
+            </label>
+            <select
+              id="listStatus"
+              value={listStatusFilter}
+              onChange={(event) => setListStatusFilter(event.target.value as ListStatusFilter)}
+              className="mt-1 w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="all">All</option>
+              <option value="onTrack">On track</option>
+              <option value="dueSoon">Due soon</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-1 lg:gap-0 lg:space-y-3">
+            <div>
+              <label htmlFor="listFrom" className="block text-sm font-medium text-slate-700">
+                Due after
+              </label>
+              <input
+                id="listFrom"
+                type="date"
+                value={listDateRange.from ?? ''}
+                onChange={(event) => setListDateRange({ ...listDateRange, from: event.target.value || undefined })}
+                className="mt-1 w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="listTo" className="block text-sm font-medium text-slate-700">
+                Due before
+              </label>
+              <input
+                id="listTo"
+                type="date"
+                value={listDateRange.to ?? ''}
+                onChange={(event) => setListDateRange({ ...listDateRange, to: event.target.value || undefined })}
+                className="mt-1 w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-4 text-sm text-slate-500">
+          <p>
+            Showing {filteredLists.length} of {lists.length} list{lists.length === 1 ? '' : 's'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setListSearchQuery('');
+              setListStatusFilter('all');
+              setListDateRange({});
+            }}
+            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            Reset filters
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-lg p-4 mb-4">
+        <h3 className="text-lg font-semibold text-slate-800 mb-3">Lists matching filters</h3>
+        {sortedFilteredLists.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sortedFilteredLists.map((list) => {
+              const status = getListStatus(list);
+              const statusLabel = status === 'overdue' ? 'Overdue' : status === 'dueSoon' ? 'Due soon' : 'On track';
+              const isActive = activeList?.id === list.id;
+              return (
+                <button
+                  key={list.id}
+                  type="button"
+                  onClick={() => setActiveListId(list.id)}
+                  className={`w-full text-left border rounded-lg p-4 transition shadow-sm ${
+                    isActive
+                      ? 'border-indigo-400 bg-indigo-50'
+                      : 'border-transparent bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50/50'
+                  }`}
+                  aria-pressed={isActive}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{list.name}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Created {formatDate(list.createdAt)} • Due {formatDate(list.dueDate)}
+                      </p>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        statusStyles[status] ?? 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No lists match your filters yet. Try adjusting the filters above.</p>
+        )}
+      </div>
+
       <div className="bg-white border rounded-lg p-4 mb-4">
         <form onSubmit={handleSaveListMeta} className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-3 md:space-y-0">
           <div className="flex-1">
@@ -365,6 +532,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
               name="listName"
               defaultValue={activeList?.name || ''}
               className="mt-1 w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="listDueDate" className="block text-sm font-medium text-slate-700">
+              Due date
+            </label>
+            <input
+              id="listDueDate"
+              name="listDueDate"
+              type="date"
+              defaultValue={activeList?.dueDate ?? ''}
+              className="mt-1 rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
           <div>

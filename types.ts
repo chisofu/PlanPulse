@@ -49,6 +49,18 @@ export interface ShoppingList {
   name: string;
   items: BudgetItem[];
   createdAt: string;
+  dueDate?: string;
+}
+
+export type SortOrder = 'newest' | 'oldest';
+
+export type ListStatusFilter = 'all' | 'overdue' | 'dueSoon' | 'onTrack';
+
+export type TemplateStatusFilter = 'all' | 'fresh' | 'stale';
+
+export interface DateRangeFilter {
+  from?: string;
+  to?: string;
 }
 
 export type TemplateCategory =
