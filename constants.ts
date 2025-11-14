@@ -7,10 +7,10 @@ import {
   POStatus,
   ShoppingList,
   BudgetItem,
-  ChatMessage,
   MerchantProfileDetail,
   PriceListUpload,
-  ItemSuggestionMetadata,
+  QuoteAttachment,
+  QuoteTimelineEntry,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -259,17 +259,61 @@ export const MOCK_TEMPLATES: Template[] = [
   },
 ];
 
-export const MOCK_ITEM_SUGGESTIONS: Omit<BudgetItem, 'id' | 'flags'>[] = [
+export const MOCK_ITEM_SUGGESTIONS: (Omit<BudgetItem, 'id' | 'flags' | 'quantity'> & {
+  priority?: BudgetItem['priority'];
+  completed?: boolean;
+  status?: BudgetItem['status'];
+})[] = [
   ...MOCK_TEMPLATES.flatMap((template) =>
     template.variants.flatMap((variant) =>
       variant.items.map(({ benchmarkSource: _benchmarkSource, ...rest }) => rest)
     )
   ),
-  { description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', unitPrice: 110, priceSource: PriceSource.Merchant },
-  { description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', unitPrice: 850, priceSource: PriceSource.Merchant },
-  { description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', unitPrice: 75, priceSource: PriceSource.Merchant },
-  { description: 'Laptop Charger', category: 'Electronics', unit: 'Each', unitPrice: 450, priceSource: PriceSource.Merchant },
-  { description: 'Safety Boots', category: 'Apparel', unit: 'Pair', unitPrice: 600, priceSource: PriceSource.Merchant },
+  {
+    description: 'A4 Printing Paper',
+    category: 'Stationery',
+    subcategory: 'Paper',
+    unit: 'Ream',
+    unitPrice: 110,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-PRINT-001',
+  },
+  {
+    description: 'Black Toner Cartridge',
+    category: 'Stationery',
+    subcategory: 'Printing Supplies',
+    unit: 'Each',
+    unitPrice: 850,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-TONER-009',
+  },
+  {
+    description: 'Whiteboard Markers',
+    category: 'Stationery',
+    subcategory: 'Meeting Room',
+    unit: 'Pack',
+    unitPrice: 75,
+    priceSource: PriceSource.Merchant,
+    sku: 'ST-MARK-004',
+  },
+  {
+    description: 'Laptop Charger',
+    category: 'Electronics',
+    subcategory: 'Accessories',
+    unit: 'Each',
+    unitPrice: 450,
+    priceSource: PriceSource.Merchant,
+    sku: 'EL-LAP-002',
+  },
+  {
+    description: 'Safety Boots',
+    category: 'Apparel',
+    subcategory: 'Protective Gear',
+    unit: 'Pair',
+    unitPrice: 600,
+    priceSource: PriceSource.Merchant,
+    sku: 'AP-BOOT-006',
+  },
 ].reduce((acc, current) => {
   if (!acc.find((item) => item.description === current.description)) {
     acc.push(current);
@@ -403,44 +447,132 @@ export const MOCK_PRICE_LIST_UPLOADS: Record<string, PriceListUpload[]> = {
 };
 
 export const MOCK_LISTS: ShoppingList[] = [
-    {
+  {
+    id: uuidv4(),
+    name: 'Office Refresh Q3',
+    createdAt: '2023-09-15T10:00:00Z',
+    items: [
+      {
         id: uuidv4(),
         name: 'Office Refresh Q3',
+        description: 'Bulk supplies refresh for the Q3 office readiness initiative.',
         createdAt: '2023-09-15T10:00:00Z',
+        dueDate: '2023-09-30',
         items: [
             { id: uuidv4(), description: 'A4 Printing Paper', category: 'Stationery', unit: 'Ream', quantity: 10, unitPrice: 110.00, priceSource: PriceSource.Merchant, flags: [] },
             { id: uuidv4(), description: 'Black Toner Cartridge', category: 'Stationery', unit: 'Each', quantity: 2, unitPrice: 850.00, priceSource: PriceSource.Merchant, flags: [] },
             { id: uuidv4(), description: 'Whiteboard Markers', category: 'Stationery', unit: 'Pack', quantity: 3, unitPrice: 75.00, priceSource: PriceSource.Merchant, flags: ['Crossed'] },
         ]
-    }
-];
-
-export const MOCK_QUOTES: Quote[] = [
+    },
     {
-        id: 'quote_01',
-        reference: 'Q-2023-001',
-        listName: 'Office Refresh Q3',
-        requester: 'Procurement Dept.',
-        merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
-        status: QuoteStatus.Finalized,
-        submittedAt: '2023-09-18T14:30:00Z',
-        items: MOCK_LISTS[0].items.filter(i => !i.flags.includes('Crossed')),
-        chatHistory: [
-            { id: uuidv4(), sender: 'Procurement', text: 'Hi, can you confirm stock for all items?', timestamp: '2023-09-18T15:00:00Z' },
-            { id: uuidv4(), sender: 'Merchant', text: 'Yes, all items are in stock and ready for delivery.', timestamp: '2023-09-18T15:05:00Z' },
-            { id: uuidv4(), sender: 'Procurement', text: 'Great, thank you. We will finalize shortly.', timestamp: '2023-09-18T15:06:00Z' },
+        id: uuidv4(),
+        name: 'Community Clinic Launch',
+        createdAt: '2024-02-01T08:30:00Z',
+        dueDate: '2024-03-15',
+        items: [
+            { id: uuidv4(), description: 'Hospital Beds', category: 'Health', unit: 'Each', quantity: 6, unitPrice: 4200.00, priceSource: PriceSource.ZPPA, flags: [] },
+            { id: uuidv4(), description: 'Medical Consumables Starter Pack', category: 'Health', unit: 'Kit', quantity: 3, unitPrice: 2750.00, priceSource: PriceSource.Merchant, flags: [] }
         ]
     },
     {
-        id: 'quote_02',
-        reference: 'Q-2023-002',
-        listName: 'New Site Setup',
-        requester: 'Procurement Dept.',
-        merchants: [MOCK_MERCHANTS[0]],
-        status: QuoteStatus.Submitted,
-        submittedAt: '2023-09-20T09:00:00Z',
-        items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),
+        id: uuidv4(),
+        name: 'Household Groceries January',
+        createdAt: '2024-12-28T07:45:00Z',
+        dueDate: '2025-01-05',
+        items: [
+            { id: uuidv4(), description: 'Maize Meal 25kg', category: 'Groceries', unit: 'Bag', quantity: 2, unitPrice: 175.00, priceSource: PriceSource.Merchant, flags: [] },
+            { id: uuidv4(), description: 'Cooking Oil 5L', category: 'Groceries', unit: 'Bottle', quantity: 1, unitPrice: 185.00, priceSource: PriceSource.Merchant, flags: [] },
+            { id: uuidv4(), description: 'Fresh Produce Assortment', category: 'Groceries', unit: 'Hamper', quantity: 1, unitPrice: 260.00, priceSource: PriceSource.Merchant, flags: [] }
+        ]
     }
+];
+
+const attachment = (filename: string, uploadedBy: string, uploadedAt: string): QuoteAttachment => ({
+  id: uuidv4(),
+  filename,
+  uploadedBy,
+  uploadedAt,
+});
+
+const timelineEntry = (
+  label: string,
+  timestamp: string,
+  status?: QuoteStatus,
+  description?: string,
+): QuoteTimelineEntry => ({
+  id: uuidv4(),
+  label,
+  timestamp,
+  status,
+  description,
+});
+
+export const MOCK_QUOTES: Quote[] = [
+  {
+    id: 'quote_01',
+    reference: 'Q-2023-001',
+    listName: 'Office Refresh Q3',
+    requester: 'Procurement Dept.',
+    merchants: [MOCK_MERCHANTS[1], MOCK_MERCHANTS[2]],
+    status: QuoteStatus.Finalized,
+    submittedAt: '2023-09-18T14:30:00Z',
+    items: MOCK_LISTS[0].items.filter((i) => !i.flags.includes('Crossed')),
+    chatHistory: [
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Hi, can you confirm stock for all items?',
+        timestamp: '2023-09-18T15:00:00Z',
+      },
+      {
+        id: uuidv4(),
+        sender: 'Merchant',
+        text: 'Yes, all items are in stock and ready for delivery.',
+        timestamp: '2023-09-18T15:05:00Z',
+      },
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Great, thank you. We will finalize shortly.',
+        timestamp: '2023-09-18T15:06:00Z',
+        attachments: [attachment('Stock-confirmation.pdf', 'Procurement', '2023-09-18T15:06:00Z')],
+      },
+    ],
+    attachments: [
+      attachment('Office-refresh-specs.xlsx', 'Procurement', '2023-09-17T08:22:00Z'),
+      attachment('Merchant-quote.pdf', 'Merchant', '2023-09-18T12:10:00Z'),
+    ],
+    timeline: [
+      timelineEntry('Request drafted', '2023-09-15T09:00:00Z', QuoteStatus.Draft),
+      timelineEntry('Submitted to merchants', '2023-09-16T10:05:00Z', QuoteStatus.Submitted),
+      timelineEntry('Merchants acknowledged', '2023-09-17T15:20:00Z', QuoteStatus.Acknowledged),
+      timelineEntry('Proforma received', '2023-09-18T13:45:00Z', QuoteStatus.ProformaReady),
+      timelineEntry('Finalized internally', '2023-09-18T15:15:00Z', QuoteStatus.Finalized),
+    ],
+  },
+  {
+    id: 'quote_02',
+    reference: 'Q-2023-002',
+    listName: 'New Site Setup',
+    requester: 'Procurement Dept.',
+    merchants: [MOCK_MERCHANTS[0]],
+    status: QuoteStatus.Submitted,
+    submittedAt: '2023-09-20T09:00:00Z',
+    items: MOCK_TEMPLATES[1].variants[0].items.map((i) => ({ ...i, id: uuidv4(), flags: [] })),
+    chatHistory: [
+      {
+        id: uuidv4(),
+        sender: 'Procurement',
+        text: 'Please confirm expected delivery timelines.',
+        timestamp: '2023-09-20T09:15:00Z',
+      },
+    ],
+    attachments: [attachment('Site-drawings.dwg', 'Procurement', '2023-09-19T17:30:00Z')],
+    timeline: [
+      timelineEntry('Request drafted', '2023-09-18T11:00:00Z', QuoteStatus.Draft),
+      timelineEntry('Submitted to merchants', '2023-09-19T08:50:00Z', QuoteStatus.Submitted),
+    ],
+  },
 ];
 
 export const MOCK_POS: PurchaseOrder[] = [

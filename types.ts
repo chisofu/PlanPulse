@@ -33,15 +33,23 @@ export enum POStatus {
     Delayed = 'Delayed'
 }
 
+export type ItemPriority = 'High' | 'Medium' | 'Low';
+
+export type ItemStatus = 'Planned' | 'In Progress' | 'Ordered' | 'Received';
+
 export interface BudgetItem {
   id: string;
   description: string;
   category: string;
+  subcategory?: string;
   unit: string;
   quantity: number;
   unitPrice: number;
   priceSource: PriceSource;
   flags: ('Crossed' | 'Excluded')[];
+  priority: ItemPriority;
+  completed: boolean;
+  status: ItemStatus;
 }
 
 export interface ItemSuggestionMetadata {
@@ -59,8 +67,21 @@ export interface ItemSuggestionMetadata {
 export interface ShoppingList {
   id: string;
   name: string;
+  description?: string;
   items: BudgetItem[];
   createdAt: string;
+  dueDate?: string;
+}
+
+export type SortOrder = 'newest' | 'oldest';
+
+export type ListStatusFilter = 'all' | 'overdue' | 'dueSoon' | 'onTrack';
+
+export type TemplateStatusFilter = 'all' | 'fresh' | 'stale';
+
+export interface DateRangeFilter {
+  from?: string;
+  to?: string;
 }
 
 export type TemplateCategory =
@@ -73,8 +94,12 @@ export type TemplateCategory =
   | 'Community'
   | 'Custom';
 
-export interface TemplateItemDefinition extends Omit<BudgetItem, 'id' | 'flags'> {
+export interface TemplateItemDefinition
+  extends Omit<BudgetItem, 'id' | 'flags' | 'priority' | 'completed' | 'status'> {
   benchmarkSource: PriceSource;
+  priority?: ItemPriority;
+  completed?: boolean;
+  status?: ItemStatus;
 }
 
 export interface TemplateVariant {
@@ -165,11 +190,28 @@ export interface PriceListUpload {
     issues: ValidationIssue[];
 }
 
+export interface QuoteAttachment {
+    id: string;
+    filename: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    url?: string;
+}
+
+export interface QuoteTimelineEntry {
+    id: string;
+    label: string;
+    timestamp: string;
+    status?: QuoteStatus;
+    description?: string;
+}
+
 export interface ChatMessage {
     id: string;
     sender: 'Procurement' | 'Merchant';
     text: string;
     timestamp: string;
+    attachments?: QuoteAttachment[];
 }
 
 export interface Quote {
@@ -182,6 +224,8 @@ export interface Quote {
     submittedAt: string;
     items: BudgetItem[];
     chatHistory?: ChatMessage[];
+    attachments?: QuoteAttachment[];
+    timeline?: QuoteTimelineEntry[];
 }
 
 export interface PurchaseOrder {
