@@ -7,10 +7,19 @@ interface TemplateVariantCardProps {
   template: Template;
   variant: TemplateVariant;
   mode: Mode;
+  variantIndex?: number;
+  totalVariants?: number;
   onSelect: (template: Template, variant: TemplateVariant) => void;
 }
 
-export const TemplateVariantCard: React.FC<TemplateVariantCardProps> = ({ template, variant, mode, onSelect }) => {
+export const TemplateVariantCard: React.FC<TemplateVariantCardProps> = ({
+  template,
+  variant,
+  mode,
+  variantIndex,
+  totalVariants,
+  onSelect,
+}) => {
   const theme = getModeTheme(mode);
 
   return (
@@ -62,7 +71,14 @@ export const TemplateVariantCard: React.FC<TemplateVariantCardProps> = ({ templa
         </div>
 
         <div className="text-xs text-slate-500 flex items-center justify-between">
-          <span>{variant.items.length} line items</span>
+          <span>
+            {variant.items.length} line item{variant.items.length === 1 ? '' : 's'}
+            {typeof totalVariants === 'number' && typeof variantIndex === 'number' && (
+              <span className="ml-2 font-semibold text-slate-400">
+                Variant {variantIndex + 1} of {totalVariants}
+              </span>
+            )}
+          </span>
           <span>{variant.sourceLabel}</span>
         </div>
       </div>

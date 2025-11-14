@@ -126,6 +126,8 @@ export interface TemplateItemDefinition
   status?: ItemStatus;
 }
 
+export type TemplatePublishStatus = 'draft' | 'published';
+
 export interface TemplateVariant {
   id: string;
   name: 'Essentials' | 'Standard' | 'Full' | string;
@@ -152,6 +154,10 @@ export interface Template {
   emoji: string;
   tags: string[];
   tone: 'Personal' | 'Enterprise' | 'Hybrid';
+  status: TemplatePublishStatus;
+  defaultUnit?: string;
+  defaultPriceSource?: PriceSource;
+  defaultCategory?: string;
   variants: TemplateVariant[];
   metrics: TemplateMetrics;
 }

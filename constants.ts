@@ -25,6 +25,10 @@ export const MOCK_TEMPLATES: Template[] = [
     emoji: '🎓',
     tags: ['textbooks', 'stationery', 'uniform'],
     tone: 'Hybrid',
+    status: 'published',
+    defaultUnit: 'Each',
+    defaultPriceSource: PriceSource.ZPPA,
+    defaultCategory: 'Stationery',
     metrics: { adoptionRate: 0.64, avgLines: 18, lastUsedAt: '2025-01-04T09:00:00Z' },
     variants: [
       {
@@ -116,6 +120,10 @@ export const MOCK_TEMPLATES: Template[] = [
     emoji: '🏗️',
     tags: ['boq', 'health', 'construction'],
     tone: 'Enterprise',
+    status: 'published',
+    defaultUnit: 'Each',
+    defaultPriceSource: PriceSource.ZPPA,
+    defaultCategory: 'Building Materials',
     metrics: { adoptionRate: 0.41, avgLines: 42, lastUsedAt: '2025-01-02T08:35:00Z' },
     variants: [
       {
@@ -197,6 +205,10 @@ export const MOCK_TEMPLATES: Template[] = [
     emoji: '🛒',
     tags: ['food', 'family', 'household'],
     tone: 'Personal',
+    status: 'published',
+    defaultUnit: 'Each',
+    defaultPriceSource: PriceSource.ZPPA,
+    defaultCategory: 'Pantry',
     metrics: { adoptionRate: 0.78, avgLines: 24, lastUsedAt: '2025-01-06T18:00:00Z' },
     variants: [
       {
