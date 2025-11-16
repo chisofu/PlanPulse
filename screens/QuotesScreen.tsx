@@ -40,8 +40,11 @@ const createBlankItem = (): BudgetItem => ({
   completed: false,
   status: 'Planned',
   excludeFromTotals: false,
+  imageUrl: undefined,
   images: [],
 });
+
+const getItemImages = (item: BudgetItem) => (item.images?.length ? item.images : item.imageUrl ? [item.imageUrl] : []);
 
 const QuotesScreen: React.FC<QuotesScreenProps> = ({ onCreatePurchaseOrder }) => {
   const quotes = usePlanPulseStore(selectQuotes);
@@ -530,6 +533,29 @@ const QuoteDetailModal: React.FC<QuoteDetailModalProps> = ({
                         placeholder="Item description"
                       />
                     ),
+                  },
+                  {
+                    key: 'photos',
+                    header: 'Photos',
+                    className: 'whitespace-normal',
+                    render: (item) => {
+                      const thumbnails = getItemImages(item);
+                      if (!thumbnails.length) {
+                        return <span className="text-xs text-slate-400">—</span>;
+                      }
+                      return (
+                        <div className="flex gap-1">
+                          {thumbnails.slice(0, 2).map((image, index) => (
+                            <img
+                              key={`${item.id}-quote-image-${index}`}
+                              src={image}
+                              alt={item.description}
+                              className="w-10 h-10 object-cover rounded-md border"
+                            />
+                          ))}
+                        </div>
+                      );
+                    },
                   },
                   {
                     key: 'quantity',

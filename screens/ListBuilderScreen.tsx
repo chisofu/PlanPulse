@@ -88,6 +88,12 @@ const getSortComparator = (key: SortKey) => {
 const deriveIsChecked = (item: BudgetItem) =>
   item.flags.includes('Crossed') || item.flags.includes('Checked');
 
+const ensureItemImages = (entry: BudgetItem): BudgetItem => ({
+  ...entry,
+  images: entry.images ?? (entry.imageUrl ? [entry.imageUrl] : []),
+  imageUrl: entry.imageUrl ?? entry.images?.[0],
+});
+
 const createTemplateFromShoppingList = (list: ShoppingList, mode: Mode): Template => {
   const fallbackItem = list.items[0];
   const defaultUnit = fallbackItem?.unit ?? 'Each';
@@ -663,16 +669,18 @@ const BudgetItemRow: React.FC<{
   onDragEnter,
   onDragEnd,
 }) => {
-  const [draft, setDraft] = useState<BudgetItem>(item);
+  const [draft, setDraft] = useState<BudgetItem>(() => ensureItemImages(item));
   const [errors, setErrors] = useState<ItemValidationErrors>({});
   const descriptionInputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const isCrossed = deriveIsChecked(item) || item.flags.includes('Crossed');
   const isExcluded = item.excludeFromTotals || item.flags.includes('Excluded');
+  const editingImages = draft.images ?? [];
+  const viewImages = item.images?.length ? item.images : item.imageUrl ? [item.imageUrl] : [];
 
   useEffect(() => {
-    setDraft(item);
+    setDraft(ensureItemImages(item));
     setErrors({});
   }, [item]);
 
@@ -703,14 +711,45 @@ const BudgetItemRow: React.FC<{
     setDraft((prev) => ({ ...prev, [field]: Math.max(0, Number(prev[field]) + delta) }) as BudgetItem);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (!files.length) {
+      return;
+    }
+    event.target.value = '';
+    const readers = files.map(
+      (file) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error ?? new Error('Failed to read image.'));
+          reader.readAsDataURL(file);
+        }),
+    );
+    Promise.all(readers)
+      .then((newImages) => {
+        setDraft((prev) => {
+          const existing = prev.images ?? [];
+          const nextImages = [...existing, ...newImages];
+          return { ...prev, images: nextImages, imageUrl: nextImages[0] };
+        });
+      })
+      .catch((error) => {
+        console.error('Unable to read selected files', error);
+      });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setDraft((prev) => {
+      const nextImages = (prev.images ?? []).filter((_, idx) => idx !== index);
+      return { ...prev, images: nextImages, imageUrl: nextImages[0] };
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name === 'quantity' || name === 'unitPrice') {
       setDraft((prev) => ({ ...prev, [name]: Number(value) }) as BudgetItem);
-      return;
-    }
-    if (name === 'images') {
-      setDraft((prev) => ({ ...prev, images: value.split('\n').map((line) => line.trim()).filter(Boolean) }));
       return;
     }
     setDraft((prev) => ({ ...prev, [name]: value }) as BudgetItem);
@@ -737,10 +776,12 @@ const BudgetItemRow: React.FC<{
 
   const handleSave = () => {
     if (!validate()) return;
+    const sanitizedImages = draft.images?.filter(Boolean) ?? [];
     onUpdate({
       ...draft,
       description: draft.description.trim() || 'Untitled item',
-      images: draft.images?.filter(Boolean) ?? [],
+      images: sanitizedImages,
+      imageUrl: sanitizedImages[0],
     });
     onCancelEdit();
   };
@@ -748,8 +789,10 @@ const BudgetItemRow: React.FC<{
   const editingContent = (
     <div className="flex flex-col gap-4" ref={rowRef}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="text-xs font-semibold text-slate-500">
-          Description
+        <div className="flex flex-col text-xs font-semibold text-slate-500">
+          <label htmlFor={`${item.id}-description`} className="text-xs font-semibold text-slate-500">
+            Description
+          </label>
           <input
             ref={descriptionInputRef}
             id={`${item.id}-description`}
@@ -760,7 +803,14 @@ const BudgetItemRow: React.FC<{
             className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Item description"
           />
-        </label>
+          <div className="mt-3">
+            <label className="inline-flex items-center gap-2 text-[11px] font-semibold text-indigo-600 cursor-pointer">
+              <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md">Upload reference photo</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
+            </label>
+            <p className="mt-1 text-[11px] font-normal text-slate-400">PNG, JPG, or HEIC up to 5 MB each.</p>
+          </div>
+        </div>
         <label className="text-xs font-semibold text-slate-500">
           SKU
           <input
@@ -807,6 +857,32 @@ const BudgetItemRow: React.FC<{
             ))}
           </datalist>
         </label>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 mb-2">Images</p>
+        {editingImages.length ? (
+          <div className="flex flex-wrap gap-3">
+            {editingImages.map((image, index) => (
+              <div key={`${item.id}-image-${index}`} className="relative w-20 h-20">
+                <img
+                  src={image}
+                  alt={`${draft.description || 'Item'} reference ${index + 1}`}
+                  className="w-20 h-20 object-cover rounded-lg border"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-slate-900/80 text-white text-xs"
+                  aria-label="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">No images uploaded yet.</p>
+        )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <label className="text-xs font-semibold text-slate-500">
@@ -911,17 +987,6 @@ const BudgetItemRow: React.FC<{
             rows={2}
             className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Add an internal note"
-          />
-        </label>
-        <label className="text-xs font-semibold text-slate-500">
-          Image URLs (one per line)
-          <textarea
-            name="images"
-            value={(draft.images ?? []).join('\n')}
-            onChange={handleChange}
-            rows={2}
-            className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="https://..."
           />
         </label>
       </div>
@@ -1050,10 +1115,15 @@ const BudgetItemRow: React.FC<{
               </span>
             )}
           </div>
-          {item.images?.length ? (
+          {viewImages.length ? (
             <div className="flex gap-2 mt-2">
-              {item.images.slice(0, 3).map((image) => (
-                <img key={`${item.id}-${image}`} src={image} alt={item.description} className="w-10 h-10 object-cover rounded-md border" />
+              {viewImages.slice(0, 3).map((image, index) => (
+                <img
+                  key={`${item.id}-preview-${index}`}
+                  src={image}
+                  alt={item.description}
+                  className="w-10 h-10 object-cover rounded-md border"
+                />
               ))}
             </div>
           ) : null}
@@ -1401,6 +1471,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       sku: draft.sku,
       comment: draft.comment,
       excludeFromTotals: draft.excludeFromTotals,
+      imageUrl: undefined,
       images: [],
     };
     addItemToList(activeList.id, newItem);
@@ -1428,6 +1499,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       priority: 'Medium',
       completed: false,
       status: 'Planned',
+      imageUrl: undefined,
       images: [],
     };
     addItemToList(activeList.id, newItem);
@@ -2093,7 +2165,6 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
         >
           <PlusIcon className="w-5 h-5" /> Add blank row
         </button>
-      </div>
 
       <footer className="bg-white border rounded-lg p-4 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

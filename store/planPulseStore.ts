@@ -177,6 +177,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     const flags = shouldExclude
       ? Array.from(new Set([...baseFlags, 'Excluded']))
       : baseFlags.filter((flag) => flag !== 'Excluded');
+    const normalizedImages = entry.images ?? (entry.imageUrl ? [entry.imageUrl] : []);
     return {
       ...entry,
       flags,
@@ -184,7 +185,8 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
       priority: entry.priority ?? 'Medium',
       completed: entry.completed ?? false,
       status: entry.status ?? 'Planned',
-      images: entry.images ?? [],
+      images: normalizedImages,
+      imageUrl: entry.imageUrl ?? normalizedImages[0],
       tags: entry.tags ?? [],
       priceHistory: entry.priceHistory ?? [],
       lastUpdatedAt: timestamp,

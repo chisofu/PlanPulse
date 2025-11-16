@@ -68,6 +68,7 @@ export interface BudgetItem {
   lastUpdatedAt?: string;
   sku?: string;
   comment?: string;
+  imageUrl?: string;
   images?: string[];
   excludeFromTotals?: boolean;
   tags?: string[];
