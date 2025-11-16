@@ -24,6 +24,7 @@ import {
 import { PlusIcon, TrashIcon, PencilIcon } from '../components/Icons';
 import { v4 as uuidv4 } from 'uuid';
 import TemplateEditorModal from '../components/templates/TemplateEditorModal';
+import { fuzzyIncludes } from '../utils/search';
 
 type SortKey = 'description' | 'quantity' | 'unitPrice';
 type SortDirection = 'asc' | 'desc';
@@ -1122,6 +1123,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
 
   const [newItemDesc, setNewItemDesc] = useState('');
   const [filterText, setFilterText] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<ItemPriority | 'all'>('all');
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'priority'>('none');
   const [sortKey, setSortKey] = useState<SortKey>('description');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibility, setVisibility] = useState<VisibilityFilter>('all');
@@ -1160,6 +1164,19 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const activeList = useMemo<ShoppingList | null>(() => {
     return activeListId ? lists.find((list) => list.id === activeListId) ?? null : lists[0] ?? null;
   }, [activeListId, lists]);
+
+  const availableCategories = useMemo(() => {
+    if (!activeList) return [];
+    const categories = Array.from(
+      new Set(
+        activeList.items
+          .map((item) => (item.category && item.category.trim().length ? item.category : 'Uncategorized'))
+          .filter(Boolean),
+      ),
+    );
+    categories.sort((a, b) => a.localeCompare(b));
+    return categories;
+  }, [activeList]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -1232,10 +1249,12 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     setHighlightedSuggestion((prev) => Math.min(Math.max(prev, 0), filteredQuickSuggestions.length - 1));
   }, [filteredQuickSuggestions.length]);
 
+  const normalizedFilter = filterText.trim();
+
   const filteredItems = useMemo(() => {
     if (!activeList) return [] as BudgetItem[];
 
-    const visibilityFilter = (item: BudgetItem) => {
+    const visibilityFilterFn = (item: BudgetItem) => {
       if (visibility === 'checked') {
         return deriveIsChecked(item);
       }
@@ -1246,23 +1265,93 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     };
 
     const searchFilter = (item: BudgetItem) => {
-      if (!filterText.trim()) return true;
-      const query = filterText.trim().toLowerCase();
-      return [item.description, item.unit, String(item.quantity), String(item.unitPrice), item.category, item.sku]
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
+      if (!normalizedFilter) return true;
+      const haystack = [
+        item.description,
+        item.unit,
+        String(item.quantity ?? ''),
+        String(item.unitPrice ?? ''),
+        item.category,
+        item.sku,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return fuzzyIncludes(normalizedFilter, haystack);
+    };
+
+    const categoryFilterFn = (item: BudgetItem) => {
+      if (categoryFilter === 'all') return true;
+      const value = item.category && item.category.trim().length ? item.category : 'Uncategorized';
+      return value === categoryFilter;
+    };
+
+    const priorityFilterFn = (item: BudgetItem) => {
+      if (priorityFilter === 'all') return true;
+      return item.priority === priorityFilter;
     };
 
     return [...activeList.items]
-      .filter(visibilityFilter)
+      .filter(visibilityFilterFn)
       .filter(searchFilter)
+      .filter(categoryFilterFn)
+      .filter(priorityFilterFn)
       .sort((a, b) => {
         const comparator = getSortComparator(sortKey);
         const value = comparator(a, b);
         return sortDirection === 'asc' ? value : value * -1;
       });
-  }, [activeList, filterText, visibility, sortDirection, sortKey]);
+  }, [activeList, categoryFilter, normalizedFilter, priorityFilter, sortDirection, sortKey, visibility]);
+
+  const filteredIndexMap = useMemo(() => {
+    return new Map(filteredItems.map((item, index) => [item.id, index]));
+  }, [filteredItems]);
+
+  const groupedItems = useMemo(() => {
+    if (groupBy === 'none') {
+      return [] as [string, BudgetItem[]][];
+    }
+    const groupMap = new Map<string, BudgetItem[]>();
+    filteredItems.forEach((item) => {
+      const label =
+        groupBy === 'category'
+          ? item.category && item.category.trim().length
+            ? item.category
+            : 'Uncategorized'
+          : item.priority ?? 'Medium';
+      if (!groupMap.has(label)) {
+        groupMap.set(label, []);
+      }
+      groupMap.get(label)!.push(item);
+    });
+    const entries = Array.from(groupMap.entries());
+    if (groupBy === 'category') {
+      entries.sort((a, b) => a[0].localeCompare(b[0]));
+    } else {
+      const priorityOrder = priorityOptions.reduce<Record<ItemPriority, number>>((acc, priority, index) => {
+        acc[priority] = index;
+        return acc;
+      }, {} as Record<ItemPriority, number>);
+      entries.sort(
+        (a, b) => (priorityOrder[a[0] as ItemPriority] ?? 99) - (priorityOrder[b[0] as ItemPriority] ?? 99),
+      );
+    }
+    return entries;
+  }, [filteredItems, groupBy]);
+
+  const hasItemFilters =
+    Boolean(normalizedFilter) ||
+    visibility !== 'all' ||
+    categoryFilter !== 'all' ||
+    priorityFilter !== 'all' ||
+    groupBy !== 'none';
+
+  const handleResetItemFilters = () => {
+    setFilterText('');
+    setCategoryFilter('all');
+    setPriorityFilter('all');
+    setVisibility('all');
+    setGroupBy('none');
+  };
 
   const includeInTotals = (item: BudgetItem) => !(item.excludeFromTotals || item.flags.includes('Excluded'));
 
@@ -1278,6 +1367,19 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       .filter((item) => !item.flags.includes('Crossed') && !item.flags.includes('Checked'))
       .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   }, [activeList]);
+
+  const filteredDraftTotal = useMemo(() => {
+    return filteredItems
+      .filter(includeInTotals)
+      .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  }, [filteredItems]);
+
+  const filteredQuoteTotal = useMemo(() => {
+    return filteredItems
+      .filter(includeInTotals)
+      .filter((item) => !item.flags.includes('Crossed') && !item.flags.includes('Checked'))
+      .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  }, [filteredItems]);
 
   const handleAddQuickItem = useCallback(() => {
     if (!activeList) return;
@@ -1732,14 +1834,14 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       </div>
 
       <div className="bg-white border rounded-lg p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="text"
               value={filterText}
               onChange={(event) => setFilterText(event.target.value)}
               placeholder="Filter list items..."
-              className="rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
             <button
               type="button"
@@ -1749,7 +1851,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
               {allFilteredSelected ? 'Clear selection' : 'Select filtered'}
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs uppercase tracking-wide text-slate-500">Sort by</label>
             <select
               value={sortKey}
@@ -1768,31 +1870,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
               {sortDirection === 'asc' ? 'Asc' : 'Desc'}
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            {(
-              [
-                { value: 'all', label: 'All' },
-                { value: 'checked', label: 'Checked' },
-                { value: 'crossed-off', label: 'Crossed off' },
-              ] as { value: VisibilityFilter; label: string }[]
-            ).map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setVisibility(value)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                  visibility === value
-                    ? mode === Mode.PricePulse
-                      ? 'bg-pricepulse text-white'
-                      : 'bg-budgetpulse text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleOpenSuggestionModal}
@@ -1806,9 +1884,102 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
             <button type="button" onClick={handlePrint} className="px-3 py-2 text-xs font-semibold border rounded-lg">
               Print view
             </button>
+            <button
+              type="button"
+              onClick={handleResetItemFilters}
+              disabled={!hasItemFilters}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg ${
+                hasItemFilters ? 'border border-indigo-200 text-indigo-700 hover:bg-indigo-50' : 'border border-slate-200 text-slate-400'
+              }`}
+            >
+              Reset filters
+            </button>
           </div>
         </div>
-
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Category filter
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">All categories</option>
+              {availableCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Priority filter
+            <select
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value as ItemPriority | 'all')}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">All priorities</option>
+              {priorityOptions.map((priority) => (
+                <option key={`filter-${priority}`} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Group items
+            <select
+              value={groupBy}
+              onChange={(event) => setGroupBy(event.target.value as 'none' | 'category' | 'priority')}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="none">No grouping</option>
+              <option value="category">Category</option>
+              <option value="priority">Priority</option>
+            </select>
+          </label>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visibility</span>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { value: 'all', label: 'All' },
+                  { value: 'checked', label: 'Checked' },
+                  { value: 'crossed-off', label: 'Crossed off' },
+                ] as { value: VisibilityFilter; label: string }[]
+              ).map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setVisibility(value)}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                    visibility === value
+                      ? mode === Mode.PricePulse
+                        ? 'bg-pricepulse text-white'
+                        : 'bg-budgetpulse text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Filtered draft total</p>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(filteredDraftTotal)}</p>
+            <p className="text-xs text-slate-500">Matches current filters, excludes items flagged from totals.</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Filtered quote total</p>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(filteredQuoteTotal)}</p>
+            <p className="text-xs text-slate-500">Excludes checked/crossed items and excluded lines.</p>
+          </div>
+        </div>
+      </div>
         {selectedIds.length > 0 && (
           <div className="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
             <div className="flex items-center justify-between text-sm">
@@ -1841,34 +2012,75 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
 
         <div className="rounded-lg border border-slate-200 overflow-hidden">
           {filteredItems.length > 0 ? (
-            filteredItems.map((item, index) => (
-              <BudgetItemRow
-                key={item.id}
-                item={item}
-                index={index}
-                isEditing={editingItemId === item.id}
-                isSelected={selectedIds.includes(item.id)}
-                isFocused={focusedItemId === item.id}
-                categories={categoryTaxonomy.length ? categoryTaxonomy : DEFAULT_ITEM_CATEGORIES}
-                units={DEFAULT_ITEM_UNITS}
-                onStartEdit={(id) => {
-                  setEditingItemId(id);
-                  setFocusedItemId(id);
-                }}
-                onCancelEdit={() => setEditingItemId(null)}
-                onUpdate={handleUpdateItem}
-                onDelete={handleDeleteItem}
-                onToggleSelect={(id, selected) =>
-                  setSelectedIds((prev) =>
-                    selected ? [...prev, id] : prev.filter((existing) => existing !== id),
-                  )
-                }
-                onToggleComplete={handleToggleComplete}
-                onDragStart={handleDragStart}
-                onDragEnter={handleDragEnter}
-                onDragEnd={handleDragEnd}
-              />
-            ))
+            groupBy === 'none' ? (
+              filteredItems.map((item, index) => (
+                <BudgetItemRow
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  isEditing={editingItemId === item.id}
+                  isSelected={selectedIds.includes(item.id)}
+                  isFocused={focusedItemId === item.id}
+                  categories={categoryTaxonomy.length ? categoryTaxonomy : DEFAULT_ITEM_CATEGORIES}
+                  units={DEFAULT_ITEM_UNITS}
+                  onStartEdit={(id) => {
+                    setEditingItemId(id);
+                    setFocusedItemId(id);
+                  }}
+                  onCancelEdit={() => setEditingItemId(null)}
+                  onUpdate={handleUpdateItem}
+                  onDelete={handleDeleteItem}
+                  onToggleSelect={(id, selected) =>
+                    setSelectedIds((prev) =>
+                      selected ? [...prev, id] : prev.filter((existing) => existing !== id),
+                    )
+                  }
+                  onToggleComplete={handleToggleComplete}
+                  onDragStart={handleDragStart}
+                  onDragEnter={handleDragEnter}
+                  onDragEnd={handleDragEnd}
+                />
+              ))
+            ) : (
+              groupedItems.map(([label, items]) => (
+                <div key={`${groupBy}-${label}`} className="border-t border-slate-200 first:border-t-0">
+                  <div className="flex items-center justify-between bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <span>
+                      {groupBy === 'category' ? label : `Priority: ${label}`}
+                    </span>
+                    <span>{items.length} item{items.length === 1 ? '' : 's'}</span>
+                  </div>
+                  {items.map((item) => (
+                    <BudgetItemRow
+                      key={item.id}
+                      item={item}
+                      index={filteredIndexMap.get(item.id) ?? 0}
+                      isEditing={editingItemId === item.id}
+                      isSelected={selectedIds.includes(item.id)}
+                      isFocused={focusedItemId === item.id}
+                      categories={categoryTaxonomy.length ? categoryTaxonomy : DEFAULT_ITEM_CATEGORIES}
+                      units={DEFAULT_ITEM_UNITS}
+                      onStartEdit={(id) => {
+                        setEditingItemId(id);
+                        setFocusedItemId(id);
+                      }}
+                      onCancelEdit={() => setEditingItemId(null)}
+                      onUpdate={handleUpdateItem}
+                      onDelete={handleDeleteItem}
+                      onToggleSelect={(id, selected) =>
+                        setSelectedIds((prev) =>
+                          selected ? [...prev, id] : prev.filter((existing) => existing !== id),
+                        )
+                      }
+                      onToggleComplete={handleToggleComplete}
+                      onDragStart={handleDragStart}
+                      onDragEnter={handleDragEnter}
+                      onDragEnd={handleDragEnd}
+                    />
+                  ))}
+                </div>
+              ))
+            )
           ) : (
             <p className="text-center text-slate-500 py-12">No items match the current filters.</p>
           )}
@@ -1886,14 +2098,14 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       <footer className="bg-white border rounded-lg p-4 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 border rounded-lg bg-slate-50">
-            <p className="text-sm font-medium text-slate-500">Draft total</p>
+            <p className="text-sm font-medium text-slate-500">List draft total</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(draftTotal)}</p>
-            <p className="text-xs text-slate-500 mt-1">Excludes lines marked “Exclude from totals”.</p>
+            <p className="text-xs text-slate-500 mt-1">Represents every item in the list minus excluded lines.</p>
           </div>
           <div className="p-4 border rounded-lg bg-slate-50">
-            <p className="text-sm font-medium text-slate-500">Quote total</p>
+            <p className="text-sm font-medium text-slate-500">List quote total</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(quoteTotal)}</p>
-            <p className="text-xs text-slate-500 mt-1">Excludes checked, crossed-off, and excluded entries.</p>
+            <p className="text-xs text-slate-500 mt-1">Skips checked/crossed-off lines and anything excluded from totals.</p>
           </div>
         </div>
       </footer>

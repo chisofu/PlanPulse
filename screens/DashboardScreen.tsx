@@ -1,15 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '../vendor/react-router-dom';
-import { Mode, ShoppingList, MerchantStatus } from '../types';
-import { DocumentDuplicateIcon, PlusIcon, CheckCircleIcon } from '../components/Icons';
-import { Mode, Role, ShoppingList } from '../types';
-import {
-  DocumentDuplicateIcon,
-  PlusIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-} from '../components/Icons';
-import { themeTokens } from '../styles/tokens';
+import { Mode, Role, ShoppingList, MerchantStatus } from '../types';
+import { DocumentDuplicateIcon, PlusIcon, CheckCircleIcon, ChevronRightIcon } from '../components/Icons';
 import {
   usePlanPulseStore,
   selectListSortOrder,
@@ -21,11 +13,10 @@ import {
   selectListStatusFilter,
   selectListDateRange,
 } from '../store/planPulseStore';
-import { getListStatus } from '../utils/search';
 import { getAccentTokensForMode } from '../styles/theme';
 import { useThemeAppearance } from '../styles/themeContext';
 import { MOCK_MERCHANTS } from '../constants';
-import { getListStatus, matchesDateRange } from '../utils/search';
+import { fuzzyIncludes, getListStatus, matchesDateRange } from '../utils/search';
 
 interface DashboardScreenProps {
   mode: Mode;
@@ -100,7 +91,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedDelegationListId, setSelectedDelegationListId] = useState<string>(lists[0]?.id ?? '');
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = searchQuery.trim();
+  const hasQuery = normalizedQuery.length > 0;
   const isPricePulse = mode === Mode.PricePulse;
   const appearance = useThemeAppearance();
   const accentTokens = getAccentTokensForMode(mode, appearance);
@@ -116,17 +108,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
   }, [lists, selectedDelegationListId]);
 
   useEffect(() => {
-    if (!normalizedQuery) {
+    if (!hasQuery) {
       setShowSuggestions(false);
     }
-  }, [normalizedQuery]);
+  }, [hasQuery]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
-    if (!normalizedQuery) {
+    if (!hasQuery) {
       return [];
     }
     const listMatches = lists
-      .filter((list) => list.name.toLowerCase().includes(normalizedQuery))
+      .filter((list) => fuzzyIncludes(normalizedQuery, list.name))
       .slice(0, 3)
       .map<Suggestion>((list) => ({
         id: list.id,
@@ -135,7 +127,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
         type: 'list',
       }));
     const templateMatches = templates
-      .filter((template) => template.name.toLowerCase().includes(normalizedQuery))
+      .filter((template) => fuzzyIncludes(normalizedQuery, template.name))
       .slice(0, 3)
       .map<Suggestion>((template) => ({
         id: template.id,
@@ -144,7 +136,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
         type: 'template',
       }));
     return [...listMatches, ...templateMatches].slice(0, 5);
-  }, [lists, templates, normalizedQuery]);
+  }, [hasQuery, lists, templates, normalizedQuery]);
 
   const filteredLists = useMemo(() => {
     return lists.filter((list) => {
@@ -155,15 +147,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
       if ((listDateRange.from || listDateRange.to) && !matchesDateRange(comparisonDate, listDateRange)) {
         return false;
       }
-      if (!normalizedQuery) {
+      if (!hasQuery) {
         return true;
       }
       return (
-        list.name.toLowerCase().includes(normalizedQuery) ||
-        list.items.some((item) => item.description.toLowerCase().includes(normalizedQuery))
+        fuzzyIncludes(normalizedQuery, list.name) ||
+        list.items.some((item) => fuzzyIncludes(normalizedQuery, item.description))
       );
     });
-  }, [lists, listStatusFilter, listDateRange, normalizedQuery]);
+  }, [hasQuery, listDateRange, listStatusFilter, lists, normalizedQuery]);
 
   const sortedLists = useMemo(() => {
     const sorted = [...filteredLists];
@@ -181,15 +173,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
   const filteredActivity = useMemo(
     () =>
       recentActivity.filter((entry) => {
-        if (!normalizedQuery) {
+        if (!hasQuery) {
           return true;
         }
         return (
-          entry.summary.toLowerCase().includes(normalizedQuery) ||
-          (entry.details?.toLowerCase().includes(normalizedQuery) ?? false)
+          fuzzyIncludes(normalizedQuery, entry.summary) ||
+          (entry.details ? fuzzyIncludes(normalizedQuery, entry.details) : false)
         );
       }),
-    [recentActivity, normalizedQuery],
+    [hasQuery, normalizedQuery, recentActivity],
   );
 
   const dueSoonCount = useMemo(
@@ -237,6 +229,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
       delete nextRange[key];
     }
     setListDateRange(nextRange);
+  };
+
+  const filtersApplied =
+    listStatusFilter !== 'all' || Boolean(listDateRange.from) || Boolean(listDateRange.to) || listSortOrder !== 'newest';
+
+  const handleResetFilters = () => {
+    setListStatusFilter('all');
+    setListDateRange({});
+    setListSortOrder('newest');
   };
 
   const getMemberName = (id?: string) =>
@@ -398,6 +399,77 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
         )}
       </div>
 
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Status filter
+            <select
+              value={listStatusFilter}
+              onChange={(event) => setListStatusFilter(event.target.value as typeof listStatusFilter)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">All statuses</option>
+              <option value="onTrack">On track</option>
+              <option value="dueSoon">Due soon</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            From date
+            <input
+              type="date"
+              value={listDateRange.from ?? ''}
+              onChange={(event) => handleDateChange('from', event.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            To date
+            <input
+              type="date"
+              value={listDateRange.to ?? ''}
+              onChange={(event) => handleDateChange('to', event.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Creation date</span>
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setListSortOrder('newest')}
+                className={`px-3 py-1.5 text-sm font-medium transition ${
+                  listSortOrder === 'newest' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+                aria-pressed={listSortOrder === 'newest'}
+              >
+                Newest
+              </button>
+              <button
+                type="button"
+                onClick={() => setListSortOrder('oldest')}
+                className={`border-l border-slate-200 px-3 py-1.5 text-sm font-medium transition ${
+                  listSortOrder === 'oldest' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+                aria-pressed={listSortOrder === 'oldest'}
+              >
+                Oldest
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              disabled={!filtersApplied}
+              className={`inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide ${
+                filtersApplied ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              Reset filters
+            </button>
+          </div>
+        </div>
+      </div>
+
       {isFirstTime && (
         <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 text-3xl">
@@ -452,7 +524,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
             onClick={card.action}
             className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: modeToken.accentSurface }}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: accentTokens.accentSurface }}>
               <div className={isPricePulse ? 'text-pricepulse' : 'text-budgetpulse'}>{card.icon}</div>
             </div>
             <div>
@@ -637,52 +709,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
           )}
 
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-1">
               <h3 className="text-lg font-semibold text-slate-900">Shopping list overview</h3>
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={listStatusFilter}
-                  onChange={(event) => setListStatusFilter(event.target.value as typeof listStatusFilter)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">All statuses</option>
-                  <option value="onTrack">On track</option>
-                  <option value="dueSoon">Due soon</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-                <input
-                  type="date"
-                  value={listDateRange.from ?? ''}
-                  onChange={(event) => handleDateChange('from', event.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="date"
-                  value={listDateRange.to ?? ''}
-                  onChange={(event) => handleDateChange('to', event.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <div className="inline-flex overflow-hidden rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setListSortOrder('newest')}
-                    className={`px-3 py-1.5 text-sm font-medium transition ${
-                      listSortOrder === 'newest' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Newest
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setListSortOrder('oldest')}
-                    className={`border-l border-slate-200 px-3 py-1.5 text-sm font-medium transition ${
-                      listSortOrder === 'oldest' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Oldest
-                  </button>
-                </div>
-              </div>
+              <p className="text-sm text-slate-500">
+                Filters and sorting reflect the controls above. Showing {sortedLists.length} matching list
+                {sortedLists.length === 1 ? '' : 's'}.
+              </p>
             </div>
             {sortedLists.length > 0 ? (
               <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
