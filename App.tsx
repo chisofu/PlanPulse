@@ -115,7 +115,10 @@ const SurfaceLayout: React.FC<{
   };
 
   const savingLabel = saveStatus === 'saving' ? 'Saving…' : 'Saved';
-  const savingClass = saveStatus === 'saving' ? 'text-amber-600' : 'text-emerald-600';
+  const savingToneClasses =
+    saveStatus === 'saving'
+      ? 'text-amber-600 bg-amber-50 ring-amber-200'
+      : 'text-emerald-600 bg-emerald-50 ring-emerald-200';
 
   return (
     <AppShell
@@ -128,7 +131,16 @@ const SurfaceLayout: React.FC<{
       subtitle={`${surface === Mode.PricePulse ? 'PricePulse' : 'BudgetPulse'} • ${activeRoute}`}
       actions={
         typeof window !== 'undefined' ? (
-          <span className={`text-sm font-medium ${savingClass}`} role="status" aria-live="polite">
+          <span
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${savingToneClasses}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${saveStatus === 'saving' ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`}
+              aria-hidden="true"
+            />
+            <span className="sr-only">PlanPulse state:</span>
             {savingLabel}
           </span>
         ) : null
