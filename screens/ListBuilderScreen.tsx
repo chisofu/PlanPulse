@@ -302,12 +302,25 @@ const QuickAddModal: React.FC<{
   categories: string[];
   units: string[];
   suggestions: SuggestionCandidate[];
+  quantitySuggestions: number[];
   onChange: (draft: QuickAddDraft) => void;
   onClose: () => void;
   onSubmit: () => void;
   onPrefill: (candidate: SuggestionCandidate) => void;
-}> = ({ isOpen, draft, categories, units, suggestions, onChange, onClose, onSubmit, onPrefill }) => {
+}> = ({
+  isOpen,
+  draft,
+  categories,
+  units,
+  suggestions,
+  quantitySuggestions,
+  onChange,
+  onClose,
+  onSubmit,
+  onPrefill,
+}) => {
   if (!isOpen) return null;
+  const quantityAssistId = 'quick-add-quantity-suggestions';
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-5">
@@ -370,8 +383,30 @@ const QuickAddModal: React.FC<{
               min={0}
               value={draft.quantity}
               onChange={(event) => onChange({ ...draft, quantity: Number(event.target.value) })}
+              aria-describedby={quantityAssistId}
               className="mt-1 rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
+            <div
+              id={quantityAssistId}
+              className="mt-2 flex flex-wrap gap-2"
+              aria-live="polite"
+            >
+              {quantitySuggestions.length ? (
+                quantitySuggestions.map((value) => (
+                  <button
+                    key={`quantity-suggestion-${value}`}
+                    type="button"
+                    onClick={() => onChange({ ...draft, quantity: value })}
+                    className="px-2 py-1 text-xs font-semibold rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    aria-label={`Set quantity to ${value}`}
+                  >
+                    ×{value}
+                  </button>
+                ))
+              ) : (
+                <p className="text-xs text-slate-400">No quantity suggestions yet</p>
+              )}
+            </div>
           </label>
           <label className="flex flex-col text-sm text-slate-600">
             Unit price (K)
@@ -1311,6 +1346,63 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     });
     return Array.from(map.values());
   }, [itemSuggestionMetadata]);
+
+  const quantitySuggestions = useMemo(() => {
+    const normalizedDescription = quickAddDraft.description.trim().toLowerCase();
+    const normalizedCategory = quickAddDraft.category.trim().toLowerCase();
+    if (!normalizedDescription && !normalizedCategory) {
+      return [] as number[];
+    }
+
+    type QuantityCandidate = { description: string; category?: string; quantity?: number; weight: number };
+    const historyCandidates: QuantityCandidate[] = (activeList?.items ?? []).map((item) => ({
+      description: item.description,
+      category: item.category,
+      quantity: item.quantity,
+      weight: 2,
+    }));
+
+    const mockCandidates: QuantityCandidate[] = MOCK_ITEM_SUGGESTIONS.map((item) => ({
+      description: item.description,
+      category: item.category,
+      quantity:
+        'quantity' in item && typeof (item as Partial<BudgetItem>).quantity === 'number'
+          ? Number((item as Partial<BudgetItem>).quantity)
+          : undefined,
+      weight: 1,
+    }));
+
+    const metadataCandidates: QuantityCandidate[] = itemSuggestionMetadata.map((entry) => ({
+      description: entry.description,
+      category: entry.category,
+      quantity: entry.quantitySuggestion,
+      weight: 1,
+    }));
+
+    const frequency = new Map<number, number>();
+    const considerCandidate = ({ description, category, quantity, weight }: QuantityCandidate) => {
+      const candidateDescription = description?.trim().toLowerCase();
+      const candidateCategory = category?.trim().toLowerCase();
+      const descriptionMatch =
+        normalizedDescription && candidateDescription
+          ? candidateDescription.includes(normalizedDescription) || normalizedDescription.includes(candidateDescription)
+          : false;
+      const categoryMatch = normalizedCategory && candidateCategory ? candidateCategory === normalizedCategory : false;
+      if (!descriptionMatch && !categoryMatch) {
+        return;
+      }
+      if (typeof quantity === 'number' && quantity > 0) {
+        frequency.set(quantity, (frequency.get(quantity) ?? 0) + weight);
+      }
+    };
+
+    [...historyCandidates, ...mockCandidates, ...metadataCandidates].forEach(considerCandidate);
+
+    return Array.from(frequency.entries())
+      .sort((a, b) => b[1] - a[1] || b[0] - a[0])
+      .map(([quantity]) => quantity)
+      .slice(0, 4);
+  }, [activeList?.items, itemSuggestionMetadata, quickAddDraft.category, quickAddDraft.description]);
 
   const filteredQuickSuggestions = useMemo(() => {
     const query = newItemDesc.trim().toLowerCase();
@@ -2311,6 +2403,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
         categories={categoryTaxonomy.length ? categoryTaxonomy : DEFAULT_ITEM_CATEGORIES}
         units={DEFAULT_ITEM_UNITS}
         suggestions={suggestionPool}
+        quantitySuggestions={quantitySuggestions}
         onChange={setQuickAddDraft}
         onClose={() => setIsQuickAddOpen(false)}
         onSubmit={() => {
