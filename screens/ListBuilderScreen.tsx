@@ -1195,6 +1195,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
   const [filterText, setFilterText] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [priorityFilter, setPriorityFilter] = useState<ItemPriority | 'all'>('all');
+  const [unitFilter, setUnitFilter] = useState<'all' | string>('all');
+  const [priceMinFilter, setPriceMinFilter] = useState('');
+  const [priceMaxFilter, setPriceMaxFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'priority'>('none');
   const [sortKey, setSortKey] = useState<SortKey>('description');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -1246,6 +1249,18 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     );
     categories.sort((a, b) => a.localeCompare(b));
     return categories;
+  }, [activeList]);
+
+  const availableUnits = useMemo(() => {
+    if (!activeList) return DEFAULT_ITEM_UNITS;
+    const units = Array.from(
+      new Set(
+        activeList.items
+          .map((item) => item.unit)
+          .filter((unit): unit is string => Boolean(unit && unit.trim().length)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    return units.length ? units : DEFAULT_ITEM_UNITS;
   }, [activeList]);
 
   useEffect(() => {
@@ -1321,6 +1336,24 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
 
   const normalizedFilter = filterText.trim();
 
+  const minPriceValue = useMemo(() => {
+    const trimmed = priceMinFilter.trim();
+    if (!trimmed.length) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [priceMinFilter]);
+
+  const maxPriceValue = useMemo(() => {
+    const trimmed = priceMaxFilter.trim();
+    if (!trimmed.length) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [priceMaxFilter]);
+
+  const hasMinPriceFilter = minPriceValue !== null;
+  const hasMaxPriceFilter = maxPriceValue !== null;
+  const priceRangeInvalid = hasMinPriceFilter && hasMaxPriceFilter && minPriceValue! > maxPriceValue!;
+
   const filteredItems = useMemo(() => {
     if (!activeList) return [] as BudgetItem[];
 
@@ -1360,17 +1393,50 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       return item.priority === priorityFilter;
     };
 
+    const unitFilterFn = (item: BudgetItem) => {
+      if (unitFilter === 'all') return true;
+      return (item.unit ?? '') === unitFilter;
+    };
+
+    const priceFilterFn = (item: BudgetItem) => {
+      if (priceRangeInvalid) return true;
+      const price = Number(item.unitPrice ?? 0);
+      if (hasMinPriceFilter && minPriceValue !== null && price < minPriceValue) {
+        return false;
+      }
+      if (hasMaxPriceFilter && maxPriceValue !== null && price > maxPriceValue) {
+        return false;
+      }
+      return true;
+    };
+
     return [...activeList.items]
       .filter(visibilityFilterFn)
       .filter(searchFilter)
       .filter(categoryFilterFn)
       .filter(priorityFilterFn)
+      .filter(unitFilterFn)
+      .filter(priceFilterFn)
       .sort((a, b) => {
         const comparator = getSortComparator(sortKey);
         const value = comparator(a, b);
         return sortDirection === 'asc' ? value : value * -1;
       });
-  }, [activeList, categoryFilter, normalizedFilter, priorityFilter, sortDirection, sortKey, visibility]);
+  }, [
+    activeList,
+    categoryFilter,
+    normalizedFilter,
+    priorityFilter,
+    sortDirection,
+    sortKey,
+    visibility,
+    unitFilter,
+    hasMinPriceFilter,
+    hasMaxPriceFilter,
+    minPriceValue,
+    maxPriceValue,
+    priceRangeInvalid,
+  ]);
 
   const filteredIndexMap = useMemo(() => {
     return new Map(filteredItems.map((item, index) => [item.id, index]));
@@ -1408,11 +1474,15 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     return entries;
   }, [filteredItems, groupBy]);
 
+  const priceFilterActive = hasMinPriceFilter || hasMaxPriceFilter;
+
   const hasItemFilters =
     Boolean(normalizedFilter) ||
     visibility !== 'all' ||
     categoryFilter !== 'all' ||
     priorityFilter !== 'all' ||
+    unitFilter !== 'all' ||
+    priceFilterActive ||
     groupBy !== 'none';
 
   const handleResetItemFilters = () => {
@@ -1421,6 +1491,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     setPriorityFilter('all');
     setVisibility('all');
     setGroupBy('none');
+    setUnitFilter('all');
+    setPriceMinFilter('');
+    setPriceMaxFilter('');
   };
 
   const includeInTotals = (item: BudgetItem) => !(item.excludeFromTotals || item.flags.includes('Excluded'));
@@ -1968,7 +2041,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
             </button>
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Category filter
             <select
@@ -1995,6 +2068,21 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
               {priorityOptions.map((priority) => (
                 <option key={`filter-${priority}`} value={priority}>
                   {priority}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Unit filter
+            <select
+              value={unitFilter}
+              onChange={(event) => setUnitFilter(event.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">All units</option>
+              {availableUnits.map((unit) => (
+                <option key={`filter-unit-${unit}`} value={unit}>
+                  {unit}
                 </option>
               ))}
             </select>
@@ -2037,6 +2125,42 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Price range (unit)
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={priceMinFilter}
+                onChange={(event) => setPriceMinFilter(event.target.value)}
+                placeholder="Min"
+                aria-invalid={priceRangeInvalid}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500 ${
+                  priceRangeInvalid ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500' : 'border-slate-300'
+                }`}
+              />
+              <span className="text-[11px] font-normal text-slate-400">to</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={priceMaxFilter}
+                onChange={(event) => setPriceMaxFilter(event.target.value)}
+                placeholder="Max"
+                aria-invalid={priceRangeInvalid}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500 ${
+                  priceRangeInvalid ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500' : 'border-slate-300'
+                }`}
+              />
+            </div>
+            <p className="text-[11px] font-normal text-slate-400 normal-case">Leave blank to skip price filtering.</p>
+            {priceRangeInvalid && (
+              <p className="text-[11px] font-normal text-rose-600 normal-case">Minimum price must be less than or equal to maximum price.</p>
+            )}
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
