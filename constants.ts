@@ -12,6 +12,11 @@ import {
   QuoteAttachment,
   QuoteTimelineEntry,
   POTimelineEntry,
+  ItemSuggestionMetadata,
+  TeamMember,
+  Role,
+  ActivityEntry,
+  MerchantStatus,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -511,15 +516,16 @@ const withDefaults = (item: Omit<BudgetItem, 'flags' | 'priority' | 'completed' 
   completed?: boolean;
   status?: BudgetItem['status'];
 }): BudgetItem => ({
-  flags: [],
-  priority: 'Medium',
-  completed: false,
-  status: 'Planned',
   ...item,
   flags: item.flags ?? [],
   priority: item.priority ?? 'Medium',
   completed: item.completed ?? false,
   status: item.status ?? 'Planned',
+  images: item.images ?? [],
+  excludeFromTotals: item.excludeFromTotals ?? false,
+  tags: item.tags ?? [],
+  comment: item.comment,
+  priceHistory: item.priceHistory ?? [],
 });
 
 export const MOCK_LISTS: ShoppingList[] = [

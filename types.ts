@@ -44,6 +44,13 @@ export type ItemPriority = 'High' | 'Medium' | 'Low';
 
 export type ItemStatus = 'Planned' | 'In Progress' | 'Ordered' | 'Received';
 
+export interface ItemPriceSnapshot {
+  value: number;
+  capturedAt: string;
+  source?: string;
+  note?: string;
+}
+
 export interface BudgetItem {
   id: string;
   description: string;
@@ -53,12 +60,18 @@ export interface BudgetItem {
   quantity: number;
   unitPrice: number;
   priceSource: PriceSource;
-  flags: ('Crossed' | 'Excluded')[];
+  flags: ('Crossed' | 'Excluded' | 'Checked')[];
   priority: ItemPriority;
   completed: boolean;
   status: ItemStatus;
   assigneeId?: string;
   lastUpdatedAt?: string;
+  sku?: string;
+  comment?: string;
+  images?: string[];
+  excludeFromTotals?: boolean;
+  tags?: string[];
+  priceHistory?: ItemPriceSnapshot[];
 }
 
 export interface ItemSuggestionMetadata {

@@ -23,7 +23,9 @@ const statusSortOrder: Record<QuoteStatus, number> = {
 };
 
 const calculateItemsTotal = (items: BudgetItem[]) =>
-  items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  items
+    .filter((item) => !(item.excludeFromTotals || item.flags.includes('Excluded')))
+    .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
 const createBlankItem = (): BudgetItem => ({
   id: uuidv4(),
@@ -34,6 +36,11 @@ const createBlankItem = (): BudgetItem => ({
   unitPrice: 0,
   priceSource: PriceSource.Merchant,
   flags: [],
+  priority: 'Medium',
+  completed: false,
+  status: 'Planned',
+  excludeFromTotals: false,
+  images: [],
 });
 
 const QuotesScreen: React.FC<QuotesScreenProps> = ({ onCreatePurchaseOrder }) => {

@@ -423,15 +423,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
             key={card.title}
             type="button"
             onClick={card.action}
-            className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all flex items-center space-x-4 w-full text-left border-t-4"
-            style={{ borderColor: accentTokens.accentColorBg }}
+            className="group flex w-full flex-col rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl"
           >
-            <div className="p-3 rounded-full" style={{ backgroundColor: accentTokens.accentSurface }}>
-            className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{card.title}</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{card.value}</p>
-            <p className="mt-1 text-sm text-slate-500">{card.detail}</p>
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full" style={{ backgroundColor: accentTokens.accentSurface }}>
+                <span className="text-lg font-semibold" style={{ color: accentTokens.accentColorBg }}>
+                  {card.title.slice(0, 2)}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{card.title}</p>
+                <p className="mt-1 text-3xl font-bold text-slate-900">{card.value}</p>
+                <p className="text-sm text-slate-500">{card.detail}</p>
+              </div>
+            </div>
             <span className="mt-3 inline-flex items-center text-sm font-medium text-indigo-600 opacity-0 transition group-hover:opacity-100">
               View details <ChevronRightIcon className="ml-1 w-4 h-4" />
             </span>
@@ -504,6 +509,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ mode, lists, quotesCo
               >
                 Oldest
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="mt-10 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {showDelegationModule && (

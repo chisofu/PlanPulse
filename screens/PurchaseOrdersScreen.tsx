@@ -592,9 +592,10 @@ const CreatePurchaseOrderModal: React.FC<CreatePurchaseOrderModalProps> = ({
             defaultValue="Deliver to main office within 7 working days."
           />
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
           <button type="submit" className="px-8 py-3 bg-budgetpulse text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors">
             Submit Purchase Order
+          </button>
           <button
             onClick={handleClose}
             className="text-2xl font-bold text-slate-400 hover:text-slate-700"

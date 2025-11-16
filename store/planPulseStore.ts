@@ -171,6 +171,25 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
         return 'Personal';
     }
   };
+  const normalizeItemForList = (entry: BudgetItem, timestamp: string): BudgetItem => {
+    const baseFlags = Array.isArray(entry.flags) ? entry.flags : [];
+    const shouldExclude = entry.excludeFromTotals ?? baseFlags.includes('Excluded');
+    const flags = shouldExclude
+      ? Array.from(new Set([...baseFlags, 'Excluded']))
+      : baseFlags.filter((flag) => flag !== 'Excluded');
+    return {
+      ...entry,
+      flags,
+      excludeFromTotals: shouldExclude,
+      priority: entry.priority ?? 'Medium',
+      completed: entry.completed ?? false,
+      status: entry.status ?? 'Planned',
+      images: entry.images ?? [],
+      tags: entry.tags ?? [],
+      priceHistory: entry.priceHistory ?? [],
+      lastUpdatedAt: timestamp,
+    };
+  };
   return {
     mode: Mode.PricePulse,
     lists: initialLists,
@@ -235,14 +254,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     },
     addItemToList: (listId: string, item: BudgetItem) => {
       const timestamp = new Date().toISOString();
-      const nextItem: BudgetItem = {
-        ...item,
-        flags: item.flags ?? [],
-        priority: item.priority ?? 'Medium',
-        completed: item.completed ?? false,
-        status: item.status ?? 'Planned',
-        lastUpdatedAt: timestamp,
-      };
+      const nextItem = normalizeItemForList(item, timestamp);
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
@@ -253,14 +265,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
     },
     updateItemInList: (listId: string, item: BudgetItem) => {
       const timestamp = new Date().toISOString();
-      const nextItem: BudgetItem = {
-        ...item,
-        flags: item.flags ?? [],
-        priority: item.priority ?? 'Medium',
-        completed: item.completed ?? false,
-        status: item.status ?? 'Planned',
-        lastUpdatedAt: timestamp,
-      };
+      const nextItem = normalizeItemForList(item, timestamp);
       set((state) => ({
         lists: state.lists.map((list) =>
           list.id === listId
@@ -313,15 +318,17 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
                 lastUpdatedAt: timestamp,
                 items: list.items.map((item) =>
                   idSet.has(item.id)
-                    ? {
-                        ...item,
-                        ...updates,
-                        flags: updates.flags ?? item.flags,
-                        priority: updates.priority ?? item.priority,
-                        completed: updates.completed ?? item.completed,
-                        status: updates.status ?? item.status,
-                        lastUpdatedAt: timestamp,
-                      }
+                    ? normalizeItemForList(
+                        {
+                          ...item,
+                          ...updates,
+                          flags: updates.flags ?? item.flags,
+                          priority: updates.priority ?? item.priority,
+                          completed: updates.completed ?? item.completed,
+                          status: updates.status ?? item.status,
+                        },
+                        timestamp,
+                      )
                     : item
                 ),
               }
@@ -350,14 +357,7 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
           const items = [...list.items];
           sorted.forEach(({ item, index }) => {
             const safeIndex = Math.min(Math.max(index, 0), items.length);
-            items.splice(safeIndex, 0, {
-              ...item,
-              flags: item.flags ?? [],
-              priority: item.priority ?? 'Medium',
-              completed: item.completed ?? false,
-              status: item.status ?? 'Planned',
-              lastUpdatedAt: timestamp,
-            });
+            items.splice(safeIndex, 0, normalizeItemForList(item, timestamp));
           });
           return { ...list, items, lastUpdatedAt: timestamp };
         }),
@@ -447,15 +447,11 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
         recentActivity: [activity, ...state.recentActivity].slice(0, 40),
       }));
     },
-    setActiveList: (listId?: string) => set({ activeListId: listId }),
-    setTemplateSearchQuery: (value: string) => set({ templateSearchQuery: value }),
-    setTemplateStatusFilter: (value: TemplateStatusFilter) => set({ templateStatusFilter: value }),
     setTemplateCategoryFilter: (value: TemplateCategory | 'all') =>
       set({ templateCategoryFilter: value }),
     setTemplateVariantFilter: (value: 'all' | string) => set({ templateVariantFilter: value }),
     setTemplatePublishFilter: (value: TemplatePublishStatus | 'all') =>
       set({ templatePublishFilter: value }),
-    setTemplateDateRange: (value: DateRangeFilter) => set({ templateDateRange: value }),
     upsertTemplate: (template: Template) => {
       set((state) => {
         const exists = state.templates.some((entry) => entry.id === template.id);
