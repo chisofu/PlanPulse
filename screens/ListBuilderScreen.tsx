@@ -59,6 +59,16 @@ type QuickAddDraft = {
 
 type SuggestionCandidate = Omit<BudgetItem, 'id' | 'flags'> & { quantity?: number };
 
+const mergeSuggestionIntoDraft = (draft: QuickAddDraft, candidate: SuggestionCandidate): QuickAddDraft => ({
+  ...draft,
+  description: candidate.description,
+  category: candidate.category ?? draft.category,
+  unit: candidate.unit ?? draft.unit,
+  unitPrice: typeof candidate.unitPrice === 'number' ? candidate.unitPrice : draft.unitPrice,
+  priceSource: candidate.priceSource ?? draft.priceSource,
+  sku: candidate.sku ?? draft.sku,
+});
+
 type ConfirmState = {
   title: string;
   description: string;
@@ -276,68 +286,82 @@ const SuggestionDropdown: React.FC<{
   if (!suggestions.length) return null;
   return (
     <div className="mt-2 rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-auto">
-      {suggestions.map((suggestion, index) => (
-        <button
-          key={`${suggestion.description}-${suggestion.category}`}
-          type="button"
-          onMouseDown={(event) => {
-            event.preventDefault();
-            onSelect(suggestion);
-          }}
-          className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 ${
-            highlightedIndex === index ? 'bg-indigo-50' : ''
-          }`}
-        >
-          <p className="font-medium text-slate-900">{suggestion.description}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            {suggestion.category && (
-              <span
-                {...(onPrefillQuickAdd
-                  ? {
-                      role: 'button' as const,
-                      tabIndex: -1,
-                      onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
-                      onClick: (event: React.MouseEvent) => {
-                        event.stopPropagation();
-                        onPrefillQuickAdd(suggestion);
-                      },
-                    }
-                  : {})}
-                className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
-                  onPrefillQuickAdd
-                    ? 'cursor-pointer border-indigo-100 bg-indigo-50 text-indigo-600 hover:border-indigo-200'
-                    : 'border-slate-200 bg-slate-100 text-slate-600'
-                }`}
-              >
-                {suggestion.category}
-              </span>
-            )}
-            {suggestion.priceSource && (
-              <span
-                {...(onPrefillQuickAdd
-                  ? {
-                      role: 'button' as const,
-                      tabIndex: -1,
-                      onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
-                      onClick: (event: React.MouseEvent) => {
-                        event.stopPropagation();
-                        onPrefillQuickAdd(suggestion);
-                      },
-                    }
-                  : {})}
-                className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
-                  onPrefillQuickAdd
-                    ? 'cursor-pointer border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200'
-                    : 'border-slate-200 bg-slate-100 text-slate-600'
-                }`}
-              >
-                {suggestion.priceSource}
-              </span>
-            )}
-            {suggestion.unit && <span className="text-slate-400">• {suggestion.unit}</span>}
-          </div>
-        </button>
-      ))}
+      {suggestions.map((suggestion, index) => {
+        const unitLabel =
+          suggestion.unit !== undefined && suggestion.unit !== null && String(suggestion.unit).trim() !== ''
+            ? String(suggestion.unit)
+            : null;
+        const unitPriceTokens: string[] = [];
+        if (unitLabel) {
+          unitPriceTokens.push(unitLabel);
+        }
+        if (typeof suggestion.unitPrice === 'number' && !Number.isNaN(suggestion.unitPrice)) {
+          unitPriceTokens.push(formatCurrency(suggestion.unitPrice));
+        }
+
+        return (
+          <button
+            key={`${suggestion.description}-${suggestion.category}`}
+            type="button"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onSelect(suggestion);
+            }}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 ${
+              highlightedIndex === index ? 'bg-indigo-50' : ''
+            }`}
+          >
+            <p className="font-medium text-slate-900">{suggestion.description}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              {suggestion.category && (
+                <span
+                  {...(onPrefillQuickAdd
+                    ? {
+                        role: 'button' as const,
+                        tabIndex: -1,
+                        onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
+                        onClick: (event: React.MouseEvent) => {
+                          event.stopPropagation();
+                          onPrefillQuickAdd(suggestion);
+                        },
+                      }
+                    : {})}
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
+                    onPrefillQuickAdd
+                      ? 'cursor-pointer border-indigo-100 bg-indigo-50 text-indigo-600 hover:border-indigo-200'
+                      : 'border-slate-200 bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {suggestion.category}
+                </span>
+              )}
+              {suggestion.priceSource && (
+                <span
+                  {...(onPrefillQuickAdd
+                    ? {
+                        role: 'button' as const,
+                        tabIndex: -1,
+                        onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
+                        onClick: (event: React.MouseEvent) => {
+                          event.stopPropagation();
+                          onPrefillQuickAdd(suggestion);
+                        },
+                      }
+                    : {})}
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
+                    onPrefillQuickAdd
+                      ? 'cursor-pointer border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200'
+                      : 'border-slate-200 bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {suggestion.priceSource}
+                </span>
+              )}
+              {unitPriceTokens.length > 0 && <span className="text-slate-400">• {unitPriceTokens.join(' • ')}</span>}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -1695,40 +1719,53 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   }, [filteredItems]);
 
-  const handleAddQuickItem = useCallback(() => {
-    if (!activeList) return;
-    const trimmed = (newItemDesc || quickAddDraft.description).trim();
-    if (!trimmed) return;
-    const draft = { ...quickAddDraft, description: trimmed };
-    const newItem: BudgetItem = {
-      id: uuidv4(),
-      description: draft.description,
-      category: draft.category || 'General',
-      unit: draft.unit === '' || draft.unit == null ? 'Each' : draft.unit,
-      quantity: draft.quantity ?? 1,
-      unitPrice: draft.unitPrice ?? 0,
-      priceSource: draft.priceSource,
-      flags: draft.excludeFromTotals ? ['Excluded'] : [],
-      priority: draft.priority,
-      completed: false,
-      status: draft.status,
-      sku: draft.sku,
-      comment: draft.comment,
-      excludeFromTotals: draft.excludeFromTotals,
-      imageUrl: undefined,
-      images: [],
-    };
-    addItemToList(activeList.id, newItem);
-    const { id: _id, flags: _flags, ...suggestionRest } = newItem;
-    recordItemSuggestion({ ...suggestionRest, quantity: draft.quantity });
-    if (draft.category && !categoryTaxonomy.some((entry) => entry.toLowerCase() === draft.category.toLowerCase())) {
-      upsertCategory(draft.category);
-    }
-    setFocusedItemId(newItem.id);
-    setNewItemDesc('');
-    setQuickAddDraft(defaultQuickAddDraft());
-    setToast({ id: uuidv4(), message: `Added “${newItem.description}”`, tone: 'success' });
-  }, [activeList, addItemToList, newItemDesc, quickAddDraft, recordItemSuggestion, categoryTaxonomy, upsertCategory]);
+  const handleAddQuickItem = useCallback(
+    (overrideDraft?: QuickAddDraft) => {
+      if (!activeList) return;
+      const baseDraft = overrideDraft ?? quickAddDraft;
+      const descriptionSource = overrideDraft ? baseDraft.description : newItemDesc || baseDraft.description;
+      const trimmed = descriptionSource.trim();
+      if (!trimmed) return;
+      const draft = { ...baseDraft, description: trimmed };
+      const newItem: BudgetItem = {
+        id: uuidv4(),
+        description: draft.description,
+        category: draft.category || 'General',
+        unit: draft.unit === '' || draft.unit == null ? 'Each' : draft.unit,
+        quantity: draft.quantity ?? 1,
+        unitPrice: draft.unitPrice ?? 0,
+        priceSource: draft.priceSource,
+        flags: draft.excludeFromTotals ? ['Excluded'] : [],
+        priority: draft.priority,
+        completed: false,
+        status: draft.status,
+        sku: draft.sku,
+        comment: draft.comment,
+        excludeFromTotals: draft.excludeFromTotals,
+        imageUrl: undefined,
+        images: [],
+      };
+      addItemToList(activeList.id, newItem);
+      const { id: _id, flags: _flags, ...suggestionRest } = newItem;
+      recordItemSuggestion({ ...suggestionRest, quantity: draft.quantity });
+      if (draft.category && !categoryTaxonomy.some((entry) => entry.toLowerCase() === draft.category.toLowerCase())) {
+        upsertCategory(draft.category);
+      }
+      setFocusedItemId(newItem.id);
+      setNewItemDesc('');
+      setQuickAddDraft(defaultQuickAddDraft());
+      setToast({ id: uuidv4(), message: `Added “${newItem.description}”`, tone: 'success' });
+    },
+    [
+      activeList,
+      addItemToList,
+      newItemDesc,
+      quickAddDraft,
+      recordItemSuggestion,
+      categoryTaxonomy,
+      upsertCategory,
+    ],
+  );
   const handleAddBlankItem = () => {
     if (!activeList) return;
     const newItem: BudgetItem = {
@@ -1831,17 +1868,11 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     setSelectedIds(allSelected ? selectedIds.filter((id) => !filteredIds.includes(id)) : Array.from(new Set([...selectedIds, ...filteredIds])));
   };
 
-  const handleApplySuggestion = (candidate: SuggestionCandidate) => {
-    setQuickAddDraft((prev) => ({
-      ...prev,
-      description: candidate.description,
-      category: candidate.category ?? prev.category,
-      unit: candidate.unit ?? prev.unit,
-      unitPrice: candidate.unitPrice ?? prev.unitPrice,
-      priceSource: candidate.priceSource ?? prev.priceSource,
-      sku: candidate.sku ?? prev.sku,
-    }));
+  const handleApplySuggestion = (candidate: SuggestionCandidate): QuickAddDraft => {
+    const updatedDraft = mergeSuggestionIntoDraft(quickAddDraft, candidate);
+    setQuickAddDraft(updatedDraft);
     setNewItemDesc(candidate.description);
+    return updatedDraft;
   };
 
   const handlePrefillQuickAddModal = (candidate: SuggestionCandidate) => {
@@ -1959,8 +1990,8 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     if (event.key === 'Enter') {
       if (highlightedSuggestion >= 0 && filteredQuickSuggestions[highlightedSuggestion]) {
         event.preventDefault();
-        handleApplySuggestion(filteredQuickSuggestions[highlightedSuggestion]);
-        handleAddQuickItem();
+        const updatedDraft = handleApplySuggestion(filteredQuickSuggestions[highlightedSuggestion]);
+        handleAddQuickItem(updatedDraft);
         return;
       }
       handleAddQuickItem();
@@ -2145,8 +2176,8 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
           suggestions={filteredQuickSuggestions}
           highlightedIndex={highlightedSuggestion}
           onSelect={(suggestion) => {
-            handleApplySuggestion(suggestion);
-            setTimeout(() => handleAddQuickItem(), 0);
+            const updatedDraft = handleApplySuggestion(suggestion);
+            handleAddQuickItem(updatedDraft);
           }}
           onPrefillQuickAdd={handlePrefillQuickAddModal}
         />
