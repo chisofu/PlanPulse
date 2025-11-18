@@ -591,7 +591,7 @@ const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                             </label>
                             <input
                               type="text"
-                              value={item.unit}
+                              value={typeof item.unit === 'number' ? item.unit.toString() : item.unit}
                               onChange={(event) =>
                                 handleVariantItemChange(variant.id, itemIndex, {
                                   unit: event.target.value,

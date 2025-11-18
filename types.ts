@@ -56,7 +56,7 @@ export interface BudgetItem {
   description: string;
   category: string;
   subcategory?: string;
-  unit: string;
+  unit: string | number;
   quantity: number;
   unitPrice: number;
   priceSource: PriceSource;
@@ -78,7 +78,7 @@ export interface BudgetItem {
 export interface ItemSuggestionMetadata {
   description: string;
   category: string;
-  unit: string;
+  unit: string | number;
   unitPrice: number;
   priceSource: PriceSource;
   quantitySuggestion?: number;

@@ -46,7 +46,7 @@ type ToastState = {
 type QuickAddDraft = {
   description: string;
   category: string;
-  unit: string;
+  unit: string | number;
   quantity: number;
   unitPrice: number;
   priceSource: PriceSource;
@@ -360,7 +360,7 @@ const QuickAddModal: React.FC<{
             Unit
             <input
               type="text"
-              value={draft.unit}
+              value={typeof draft.unit === 'number' ? draft.unit.toString() : draft.unit}
               onChange={(event) => onChange({ ...draft, unit: event.target.value })}
               list="quick-add-units"
               className="mt-1 rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -713,6 +713,16 @@ const BudgetItemRow: React.FC<{
   const isExcluded = item.excludeFromTotals || item.flags.includes('Excluded');
   const editingImages = draft.images ?? [];
   const viewImages = item.images?.length ? item.images : item.imageUrl ? [item.imageUrl] : [];
+  const numericUnitOptions = useMemo(
+    () => units.filter((unit) => unit.trim().length > 0 && /^-?\d+(\.\d+)?$/.test(unit.trim())),
+    [units],
+  );
+  const unitInputValue =
+    typeof draft.unit === 'number'
+      ? draft.unit
+      : typeof draft.unit === 'string' && draft.unit.trim().length && !Number.isNaN(Number(draft.unit))
+        ? Number(draft.unit)
+        : '';
 
   useEffect(() => {
     setDraft(ensureItemImages(item));
@@ -781,10 +791,22 @@ const BudgetItemRow: React.FC<{
     });
   };
 
+  const parseNumericInput = (raw: string) => {
+    if (raw.trim() === '') return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name === 'quantity' || name === 'unitPrice') {
-      setDraft((prev) => ({ ...prev, [name]: Number(value) }) as BudgetItem);
+      const parsed = parseNumericInput(value);
+      setDraft((prev) => ({ ...prev, [name]: parsed ?? 0 }) as BudgetItem);
+      return;
+    }
+    if (name === 'unit') {
+      const parsed = parseNumericInput(value);
+      setDraft((prev) => ({ ...prev, unit: parsed ?? '' }) as BudgetItem);
       return;
     }
     setDraft((prev) => ({ ...prev, [name]: value }) as BudgetItem);
@@ -877,20 +899,27 @@ const BudgetItemRow: React.FC<{
         </label>
         <label className="text-xs font-semibold text-slate-500">
           Unit
-          <input
-            id={`${item.id}-unit`}
-            type="text"
-            name="unit"
-            value={draft.unit}
-            onChange={handleChange}
-            list={`unit-options-${item.id}`}
-            className="w-full mt-1 p-2 text-sm border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-          />
-          <datalist id={`unit-options-${item.id}`}>
-            {units.map((unit) => (
-              <option key={`unit-${item.id}-${unit}`} value={unit} />
-            ))}
-          </datalist>
+          <div className="flex mt-1 rounded-md border border-slate-300 focus-within:ring-2 focus-within:ring-indigo-500">
+            <input
+              id={`${item.id}-unit`}
+              type="number"
+              name="unit"
+              value={unitInputValue}
+              onChange={handleChange}
+              className="flex-1 p-2 text-sm border-0 focus:ring-0"
+              placeholder="0"
+              min={0}
+              step="0.01"
+              list={numericUnitOptions.length ? `unit-options-${item.id}` : undefined}
+            />
+          </div>
+          {numericUnitOptions.length > 0 && (
+            <datalist id={`unit-options-${item.id}`}>
+              {numericUnitOptions.map((unit) => (
+                <option key={`unit-${item.id}-${unit}`} value={unit} />
+              ))}
+            </datalist>
+          )}
         </label>
       </div>
       <div>
@@ -1130,7 +1159,7 @@ const BudgetItemRow: React.FC<{
           </button>
           <div className="text-xs text-slate-500 flex flex-wrap gap-2">
             <span>
-              Qty {item.quantity} {item.unit || '—'}
+              Qty {item.quantity} {item.unit === '' || item.unit == null ? '—' : item.unit}
             </span>
             <span>• {item.priceSource}</span>
             {item.sku && <span>• SKU {item.sku}</span>}
@@ -1291,7 +1320,12 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     const units = Array.from(
       new Set(
         activeList.items
-          .map((item) => item.unit)
+          .map((item) => {
+            if (typeof item.unit === 'number') {
+              return item.unit.toString();
+            }
+            return item.unit ?? '';
+          })
           .filter((unit): unit is string => Boolean(unit && unit.trim().length)),
       ),
     ).sort((a, b) => a.localeCompare(b));
@@ -1487,7 +1521,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
 
     const unitFilterFn = (item: BudgetItem) => {
       if (unitFilter === 'all') return true;
-      return (item.unit ?? '') === unitFilter;
+      return String(item.unit ?? '') === unitFilter;
     };
 
     const priceFilterFn = (item: BudgetItem) => {
@@ -1625,9 +1659,9 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
       id: uuidv4(),
       description: draft.description,
       category: draft.category || 'General',
-      unit: draft.unit || 'Each',
-      quantity: draft.quantity || 1,
-      unitPrice: draft.unitPrice || 0,
+      unit: draft.unit === '' || draft.unit == null ? 'Each' : draft.unit,
+      quantity: draft.quantity ?? 1,
+      unitPrice: draft.unitPrice ?? 0,
       priceSource: draft.priceSource,
       flags: draft.excludeFromTotals ? ['Excluded'] : [],
       priority: draft.priority,
