@@ -271,7 +271,8 @@ const SuggestionDropdown: React.FC<{
   suggestions: SuggestionCandidate[];
   highlightedIndex: number;
   onSelect: (candidate: SuggestionCandidate) => void;
-}> = ({ suggestions, highlightedIndex, onSelect }) => {
+  onPrefillQuickAdd?: (candidate: SuggestionCandidate) => void;
+}> = ({ suggestions, highlightedIndex, onSelect, onPrefillQuickAdd }) => {
   if (!suggestions.length) return null;
   return (
     <div className="mt-2 rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-auto">
@@ -288,9 +289,53 @@ const SuggestionDropdown: React.FC<{
           }`}
         >
           <p className="font-medium text-slate-900">{suggestion.description}</p>
-          <p className="text-xs text-slate-500">
-            {suggestion.category} • {suggestion.unit}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            {suggestion.category && (
+              <span
+                {...(onPrefillQuickAdd
+                  ? {
+                      role: 'button' as const,
+                      tabIndex: -1,
+                      onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
+                      onClick: (event: React.MouseEvent) => {
+                        event.stopPropagation();
+                        onPrefillQuickAdd(suggestion);
+                      },
+                    }
+                  : {})}
+                className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
+                  onPrefillQuickAdd
+                    ? 'cursor-pointer border-indigo-100 bg-indigo-50 text-indigo-600 hover:border-indigo-200'
+                    : 'border-slate-200 bg-slate-100 text-slate-600'
+                }`}
+              >
+                {suggestion.category}
+              </span>
+            )}
+            {suggestion.priceSource && (
+              <span
+                {...(onPrefillQuickAdd
+                  ? {
+                      role: 'button' as const,
+                      tabIndex: -1,
+                      onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
+                      onClick: (event: React.MouseEvent) => {
+                        event.stopPropagation();
+                        onPrefillQuickAdd(suggestion);
+                      },
+                    }
+                  : {})}
+                className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
+                  onPrefillQuickAdd
+                    ? 'cursor-pointer border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200'
+                    : 'border-slate-200 bg-slate-100 text-slate-600'
+                }`}
+              >
+                {suggestion.priceSource}
+              </span>
+            )}
+            {suggestion.unit && <span className="text-slate-400">• {suggestion.unit}</span>}
+          </div>
         </button>
       ))}
     </div>
@@ -1799,6 +1844,11 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
     setNewItemDesc(candidate.description);
   };
 
+  const handlePrefillQuickAddModal = (candidate: SuggestionCandidate) => {
+    handleApplySuggestion(candidate);
+    setIsQuickAddOpen(true);
+  };
+
   const handleSaveListName = () => {
     if (!activeList) return;
     const updated: ShoppingList = { ...activeList, name: nameDraft.trim() || 'Untitled List' };
@@ -2098,6 +2148,7 @@ const ListBuilderScreen: React.FC<ListBuilderScreenProps> = ({ mode }) => {
             handleApplySuggestion(suggestion);
             setTimeout(() => handleAddQuickItem(), 0);
           }}
+          onPrefillQuickAdd={handlePrefillQuickAddModal}
         />
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span>Use ↑/↓ to navigate suggestions • Enter to add • ⌘+Enter to capture quickly</span>
