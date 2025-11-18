@@ -81,6 +81,91 @@ type AlternativeModalState = {
   candidates: SuggestionCandidate[];
 };
 
+const AddCategoryPrompt: React.FC<{
+  isOpen: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}> = ({ isOpen, value, onChange, onCancel, onConfirm }) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timeout = window.setTimeout(() => inputRef.current?.focus(), 50);
+      return () => window.clearTimeout(timeout);
+    }
+    return undefined;
+  }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onConfirm();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+    }
+  };
+
+  const isDisabled = !value.trim().length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+      <div className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-500">New category</p>
+            <h3 className="text-lg font-bold text-slate-900">Save it to the taxonomy</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-slate-400 transition hover:text-slate-600"
+            aria-label="Close add category"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="text-sm text-slate-500">
+          Give the new grouping a name so it stays available anywhere categories are used.
+        </p>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="e.g. Catering"
+        />
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isDisabled}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-indigo-700"
+          >
+            Save category
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const priorityOptions: ItemPriority[] = ['High', 'Medium', 'Low'];
 const statusOptions: ItemStatus[] = ['Planned', 'In Progress', 'Ordered', 'Received'];
 
@@ -390,6 +475,25 @@ const QuickAddModal: React.FC<{
 }) => {
   if (!isOpen) return null;
   const quantityAssistId = 'quick-add-quantity-suggestions';
+  const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleOpenAddCategory = () => {
+    setNewCategoryName(draft.category ?? '');
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleConfirmNewCategory = () => {
+    const normalized = newCategoryName.trim();
+    if (!normalized) {
+      return;
+    }
+    upsertCategory(normalized);
+    onChange({ ...draft, category: normalized });
+    setIsAddCategoryOpen(false);
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-5">
@@ -415,7 +519,17 @@ const QuickAddModal: React.FC<{
             />
           </label>
           <label className="flex flex-col text-sm text-slate-600">
-            Category
+            <span className="flex items-center justify-between gap-2">
+              Category
+              <button
+                type="button"
+                onClick={handleOpenAddCategory}
+                className="inline-flex items-center justify-center rounded-md border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
+                aria-label="Create a new category"
+              >
+                +
+              </button>
+            </span>
             <input
               type="text"
               value={draft.category}
@@ -593,6 +707,13 @@ const QuickAddModal: React.FC<{
           <option key={`unit-${unit}`} value={unit} />
         ))}
       </datalist>
+      <AddCategoryPrompt
+        isOpen={isAddCategoryOpen}
+        value={newCategoryName}
+        onChange={setNewCategoryName}
+        onCancel={() => setIsAddCategoryOpen(false)}
+        onConfirm={handleConfirmNewCategory}
+      />
     </div>
   );
 };
@@ -778,6 +899,8 @@ const BudgetItemRow: React.FC<{
   const descriptionInputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryDraft, setNewCategoryDraft] = useState('');
   const isCrossed = deriveIsChecked(item) || item.flags.includes('Crossed');
   const isExcluded = item.excludeFromTotals || item.flags.includes('Excluded');
   const editingImages = draft.images ?? [];
@@ -786,6 +909,7 @@ const BudgetItemRow: React.FC<{
     () => units.filter((unit) => unit.trim().length > 0 && /^-?\d+(\.\d+)?$/.test(unit.trim())),
     [units],
   );
+  const upsertCategory = usePlanPulseStore((state) => state.upsertCategory);
   const unitInputValue =
     typeof draft.unit === 'number'
       ? draft.unit
@@ -858,6 +982,21 @@ const BudgetItemRow: React.FC<{
       const nextImages = (prev.images ?? []).filter((_, idx) => idx !== index);
       return { ...prev, images: nextImages, imageUrl: nextImages[0] };
     });
+  };
+
+  const handleOpenAddCategory = () => {
+    setNewCategoryDraft(draft.category ?? '');
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleConfirmNewCategory = () => {
+    const normalized = newCategoryDraft.trim();
+    if (!normalized) {
+      return;
+    }
+    upsertCategory(normalized);
+    setDraft((prev) => ({ ...prev, category: normalized }));
+    setIsAddCategoryOpen(false);
   };
 
   const parseNumericInput = (raw: string) => {
@@ -950,7 +1089,17 @@ const BudgetItemRow: React.FC<{
           />
         </label>
         <label className="text-xs font-semibold text-slate-500">
-          Category
+          <span className="flex items-center justify-between gap-2">
+            Category
+            <button
+              type="button"
+              onClick={handleOpenAddCategory}
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
+              aria-label="Create a new category"
+            >
+              +
+            </button>
+          </span>
           <input
             id={`${item.id}-category`}
             type="text"
@@ -1299,6 +1448,13 @@ const BudgetItemRow: React.FC<{
   return (
     <div ref={rowRef} className={`p-3 transition-all ${containerClasses}`} draggable={!isEditing}>
       {isEditing ? editingContent : viewContent}
+      <AddCategoryPrompt
+        isOpen={isAddCategoryOpen}
+        value={newCategoryDraft}
+        onChange={setNewCategoryDraft}
+        onCancel={() => setIsAddCategoryOpen(false)}
+        onConfirm={handleConfirmNewCategory}
+      />
     </div>
   );
 };

@@ -25,6 +25,7 @@ import {
   MOCK_TEMPLATES,
   MOCK_TEAM_MEMBERS,
   MOCK_ACTIVITY,
+  DEFAULT_ITEM_CATEGORIES,
 } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -116,6 +117,7 @@ type PersistedState = Pick<
   | 'listSortOrder'
   | 'dashboardSearchQuery'
   | 'userRole'
+  | 'categoryTaxonomy'
 >;
 
 const loadPersistedState = (): Partial<PersistedState> | undefined => {
@@ -147,6 +149,7 @@ export const getPersistableState = (state: PlanPulseState): PersistedState => ({
   listSortOrder: state.listSortOrder,
   dashboardSearchQuery: state.dashboardSearchQuery,
   userRole: state.userRole,
+  categoryTaxonomy: state.categoryTaxonomy,
 });
 
 export const persistenceKey = STORAGE_KEY;
@@ -156,7 +159,13 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
   const initialLists = persisted?.lists?.length ? persisted.lists : [...MOCK_LISTS];
   const initialActiveList = persisted?.activeListId ?? initialLists[0]?.id;
   const derivedCategories = Array.from(
-    new Set(initialLists.flatMap((list) => list.items.map((item) => item.category))),
+    new Set(
+      [
+        ...DEFAULT_ITEM_CATEGORIES,
+        ...initialLists.flatMap((list) => list.items.map((item) => item.category)),
+        ...(persisted?.categoryTaxonomy ?? []),
+      ].filter((category): category is string => Boolean(category && category.trim().length)),
+    ),
   ).sort((a, b) => a.localeCompare(b));
   const getActorLabel = () => {
     const role = get().userRole;
