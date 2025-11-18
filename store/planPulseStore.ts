@@ -601,8 +601,8 @@ export const usePlanPulseStore = createStore<PlanPulseState>((set, get) => {
                 ? {
                     ...suggestion,
                     category: item.category || suggestion.category,
-                    unit: item.unit || suggestion.unit,
-                    unitPrice: item.unitPrice || suggestion.unitPrice,
+                    unit: item.unit === '' || item.unit == null ? suggestion.unit : item.unit,
+                    unitPrice: item.unitPrice ?? suggestion.unitPrice,
                     priceSource: item.priceSource || suggestion.priceSource,
                     quantitySuggestion: item.quantity ?? suggestion.quantitySuggestion,
                     usageCount: suggestion.usageCount + 1,

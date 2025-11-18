@@ -344,7 +344,11 @@ export const DEFAULT_ITEM_CATEGORIES = Array.from(
 ).sort((a, b) => a.localeCompare(b));
 
 export const DEFAULT_ITEM_UNITS = Array.from(
-  new Set(MOCK_ITEM_SUGGESTIONS.map((item) => item.unit))
+  new Set(
+    MOCK_ITEM_SUGGESTIONS.map((item) =>
+      typeof item.unit === 'number' ? item.unit.toString() : item.unit,
+    ),
+  ),
 ).sort((a, b) => a.localeCompare(b));
 
 export const DEFAULT_PRICE_SOURCES = Object.values(PriceSource);
